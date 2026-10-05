@@ -169,10 +169,12 @@ Prasyarat: Node.js 24 LTS, npm, dan PostgreSQL 18.
 npm ci
 node scripts/setup-env.mjs     # hanya bila .env belum ada
 # Isi HRIS_DATABASE_URL (atau HRIS_DB_*) dan NEXTAUTH_URL di .env
-npm run db:migrate
+npm run db:setup              # membuat seluruh tabel di database kosong (sekali langkah)
 npm run seed
 npm run dev
 ```
+
+Database yang dibuat versi lain ditolak dengan pesan jelas; untuk database uji/dummy kosongkan dengan `npm run db:reset -- --confirm=<nama database>` lalu jalankan `db:setup` dan `seed` lagi. Semua gambar yang diunggah disimpan sebagai WebP.
 
 Akun bootstrap memakai `SEED_ADMIN_EMAIL` di http://localhost:3000/auth/admin. Password berasal dari `.env`, dan seed tidak mereset akun yang sudah ada. Dataset demo 200 karyawan tersedia untuk pengujian: `npm run seed:demo:plan`, lalu `npm run seed:demo`.
 

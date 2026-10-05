@@ -18,11 +18,12 @@
     "test:barcode": "tsx --tsconfig tsconfig.json --test src/lib/barcode.test.ts",
     "test:security": "tsx --tsconfig tsconfig.json --test src/lib/api.security.test.ts src/lib/crypto.security.test.ts src/lib/rbac/scope.security.test.ts src/lib/storage/LocalProvider.security.test.ts src/lib/integrations/api-scopes.security.test.ts src/lib/export/export.security.test.ts",
     "db:plan": "tsx --tsconfig tsconfig.json scripts/postgres.ts --app=hris --action=plan",
-    "db:migrate": "tsx --tsconfig tsconfig.json --env-file=.env scripts/postgres.ts --app=hris --action=apply",
+    "db:setup": "tsx --tsconfig tsconfig.json --env-file=.env scripts/postgres.ts --app=hris --action=setup",
+    "db:reset": "tsx --tsconfig tsconfig.json --env-file=.env scripts/postgres.ts --app=hris --action=reset",
     "db:check": "tsx --tsconfig tsconfig.json --env-file=.env scripts/postgres.ts --app=hris --action=check",
-    "db:import": "tsx --tsconfig tsconfig.json --env-file=.env scripts/migrate-mongodb-to-postgres.ts --app=hris",
     "db:cleanup": "tsx --tsconfig tsconfig.json --env-file=.env scripts/postgres.ts --app=hris --action=cleanup",
-    "test:postgres": "tsx --tsconfig tsconfig.json --test packages/database/database.test.ts src/lib/postgres.test.ts scripts/migration-values.test.ts"
+    "test:postgres": "tsx --tsconfig tsconfig.json --test packages/database/database.test.ts src/lib/postgres.test.ts",
+    "test:images": "tsx --tsconfig tsconfig.json --test src/lib/storage/image.test.ts"
   },
   "dependencies": {
     "bcryptjs": "3.0.3",
@@ -35,6 +36,7 @@
     "pg": "8.23.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "sharp": "0.35.4",
     "zod": "4.6.5"
   },
   "devDependencies": {
@@ -48,7 +50,6 @@
     "esbuild": "0.28.2",
     "eslint": "10.11.0",
     "eslint-config-next": "16.3.6",
-    "mongoose": "9.10.2",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.15",
     "typescript": "6.0.3"

@@ -16,6 +16,7 @@ import { checkPermission } from "@/lib/rbac";
 import { RATE_RULES } from "@/lib/rate-limit";
 import { calculateDistanceMeters } from "@/lib/geo";
 import { storageProvider, decodeDataUrl } from "@/lib/storage";
+import { optimizeImage } from "@/lib/storage/image";
 import { logActivity } from "@/lib/audit/logger";
 import { getSettings } from "@/lib/settings";
 import {
@@ -33,6 +34,7 @@ import Employee from "@/models/Employee";
 import Branch from "@/models/Branch";
 import LeaveRequest from "@/models/LeaveRequest";
 import FaceProfile from "@/models/FaceProfile";
+import { getBranchAccess, isBranchUsable, INACTIVE_BRANCH_MESSAGE } from "@/lib/licensing/branch-access";
 import { getFaceSettings, verifyAttendanceFace, FaceMismatchError } from "@/lib/face/service";
 
 const ACTIONS = ["clock_in", "break_out", "break_in", "clock_out"] as const;
@@ -222,11 +224,14 @@ export const POST = wrapRouteHandler(async (req) => {
   const defaultRadius = Number(settings.default_geo_radius);
   let isWithinRadius = distance <= (assignedBranch.radiusMeter || defaultRadius);
 
+  // Without the multi-branch license only one branch accepts attendance.
+  const branchAccess = await getBranchAccess();
   if (!isWithinRadius) {
     const others = await Branch.find({ _id: { $ne: assignedBranch._id } }).lean<
       Array<{ _id: unknown; name: string; lat: number; lng: number; radiusMeter: number }>
     >();
     for (const br of others) {
+      if (!isBranchUsable(branchAccess, br._id)) continue;
       const d = calculateDistanceMeters(body.lat, body.lng, br.lat, br.lng);
       if (d <= (br.radiusMeter || defaultRadius)) {
         activeBranch = br as typeof assignedBranch;
@@ -237,6 +242,8 @@ export const POST = wrapRouteHandler(async (req) => {
       }
     }
   }
+
+  if (!isBranchUsable(branchAccess, activeBranch._id)) throw Forbidden(INACTIVE_BRANCH_MESSAGE);
 
   // An approved WFH / dinas-luar leave covering today lifts the radius check —
   // this is the exemption the spec describes, and it is checked here rather
@@ -292,7 +299,7 @@ export const POST = wrapRouteHandler(async (req) => {
   let photoKey = "";
   let faceDistanceScore: number | null = null;
   if (body.photo) {
-    const { buffer, ext } = decodeDataUrl(body.photo, ["image/jpeg", "image/png", "image/webp"]);
+    const { buffer } = decodeDataUrl(body.photo, ["image/jpeg", "image/png", "image/webp"]);
 
     if (face.enabled) {
       try {
@@ -320,11 +327,13 @@ export const POST = wrapRouteHandler(async (req) => {
       }
     }
 
+    // Stored as WebP (smaller, no metadata); face matching above used the original.
     // Timestamped so a retap never silently overwrites the earlier evidence.
+    const stored = await optimizeImage(buffer, { maxSide: 1600 });
     photoKey = await storageProvider.upload(
-      buffer,
-      `attendances/${ctx.employeeId}/${dayKey}-${action}-${now.getTime()}${ext}`,
-      "image/jpeg"
+      stored.buffer,
+      `attendances/${ctx.employeeId}/${dayKey}-${action}-${now.getTime()}${stored.ext}`,
+      stored.mime
     );
   }
 

@@ -424,6 +424,14 @@ const BASE_GROUPS: ApiGroup[] = [
         ],
       },
       {
+        method: "PUT",
+        path: "/branches/active",
+        summary: "Pilih cabang yang tetap aktif",
+        description: "Tanpa lisensi multi-cabang hanya satu cabang yang dapat dipakai untuk presensi dan penempatan. Cabang lain aktif kembali otomatis setelah lisensi Pro aktif.",
+        auth: "settings:write",
+        body: [{ name: "branchId", type: "string", required: true, description: "ID cabang yang tetap aktif." }],
+      },
+      {
         method: "GET",
         path: "/holidays",
         summary: "Hari libur nasional",

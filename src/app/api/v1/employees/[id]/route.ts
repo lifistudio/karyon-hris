@@ -5,6 +5,7 @@ import { checkPermission } from "@/lib/rbac";
 import { logActivity } from "@/lib/audit/logger";
 import { decryptOrEmpty, maskTail } from "@/lib/crypto";
 import { storageProvider, decodeDataUrl } from "@/lib/storage";
+import { optimizeImage } from "@/lib/storage/image";
 import Employee from "@/models/Employee";
 import User from "@/models/User";
 
@@ -127,12 +128,16 @@ export const PATCH = wrapRouteHandler<Ctx>(async (req, ctxParams) => {
   if (body.socialMedia) employee.socialMedia = body.socialMedia;
 
   if (body.photo) {
-    const { buffer, ext, mime } = decodeDataUrl(body.photo, ["image/jpeg", "image/png", "image/webp"]);
+    const { buffer } = decodeDataUrl(body.photo, ["image/jpeg", "image/png", "image/webp"]);
+    const photo = await optimizeImage(buffer, { maxSide: 1024 });
+    const previous = employee.photoUrl as string | undefined;
     employee.photoUrl = await storageProvider.upload(
-      buffer,
-      `employees/${id}/avatar${ext}`,
-      mime
+      photo.buffer,
+      `employees/${id}/avatar${photo.ext}`,
+      photo.mime
     );
+    // An older photo saved under another extension (e.g. avatar.jpg) is no longer used.
+    if (previous && previous !== employee.photoUrl) void storageProvider.delete(previous).catch(() => {});
   }
 
   await employee.save();

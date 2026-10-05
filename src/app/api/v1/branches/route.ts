@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/audit/logger";
 import { getSettings } from "@/lib/settings";
 import Branch from "@/models/Branch";
 import Employee from "@/models/Employee";
+import { getBranchAccess, isBranchUsable } from "@/lib/licensing/branch-access";
 
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Format jam harus HH:MM");
@@ -40,9 +41,15 @@ export const GET = wrapRouteHandler(async (req) => {
     { $group: { _id: "$branchId", count: { $sum: 1 } } },
   ]);
   const countMap = new Map(counts.map((c) => [String(c._id), c.count]));
+  // Without the multi-branch license only one branch stays usable; the rest are shown as inactive.
+  const access = await getBranchAccess();
 
   return apiSuccess(
-    branches.map((b) => ({ ...b, employeeCount: countMap.get(String(b._id)) ?? 0 })),
+    branches.map((b) => ({
+      ...b,
+      employeeCount: countMap.get(String(b._id)) ?? 0,
+      licenseInactive: !isBranchUsable(access, b._id),
+    })),
     "Berhasil memuat data cabang"
   );
 });

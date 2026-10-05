@@ -30,6 +30,8 @@ interface Branch {
   radiusMeter: number;
   workHours: { start: string; end: string };
   employeeCount?: number;
+  /** Not usable while the multi-branch license is inactive (only one branch stays active). */
+  licenseInactive?: boolean;
 }
 
 const DEFAULT_POINT = { lat: -6.2, lng: 106.816666 };
@@ -45,6 +47,7 @@ export default function BranchesPage() {
   const [formError, setFormError] = useState("");
   const [toDelete, setToDelete] = useState<Branch | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [activating, setActivating] = useState<string | null>(null);
 
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -57,6 +60,8 @@ export default function BranchesPage() {
 
   const multiBranch = hasFeature(license, "organization.multi_branch");
   const limitReached = !!license && !multiBranch && branches.length >= 1;
+  const inactiveCount = branches.filter((b) => b.licenseInactive).length;
+  const activeBranch = inactiveCount > 0 ? branches.find((b) => !b.licenseInactive) : undefined;
 
   const fetchBranches = useCallback(async () => {
     setLoading(true);
@@ -117,6 +122,19 @@ export default function BranchesPage() {
     }
   };
 
+  const makeActive = async (branch: Branch) => {
+    setActivating(branch._id);
+    try {
+      const res = await api.put("/api/v1/branches/active", { branchId: branch._id });
+      toast.success("Cabang aktif diganti", res.message ?? "");
+      void fetchBranches();
+    } catch (err) {
+      toast.error("Tidak dapat mengganti cabang aktif", errorMessage(err));
+    } finally {
+      setActivating(null);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!toDelete) return;
     setDeleting(true);
@@ -144,7 +162,19 @@ export default function BranchesPage() {
         }
       />
 
-      {limitReached && (
+      {inactiveCount > 0 && (
+        <Alert tone="warning" title={`Hanya satu cabang aktif: ${activeBranch?.name ?? "-"}`}>
+          Lisensi multi-cabang (HRIS Pro) tidak aktif, sehingga {inactiveCount} cabang lain dinonaktifkan sementara: karyawan di cabang
+          tersebut tidak dapat presensi dan tidak dapat ditempatkan karyawan baru. Data tidak dihapus. Pilih cabang yang tetap aktif
+          dengan tombol <strong>Jadikan cabang aktif</strong>, atau perpanjang lisensi di{" "}
+          <Link href="/admin/license" className="font-semibold text-primary underline-offset-2 hover:underline">
+            Lisensi &amp; Paket
+          </Link>{" "}
+          agar semua cabang aktif kembali.
+        </Alert>
+      )}
+
+      {limitReached && inactiveCount === 0 && (
         <Alert tone="info" title={license?.edition === "pro" ? "Lisensi Pro tidak aktif: satu cabang" : "Edisi Community: satu cabang"}>
           Cabang yang ada tetap dapat diubah dan dipakai untuk presensi. Untuk menambah cabang, aktifkan atau perpanjang HRIS Pro di{" "}
           <Link href="/admin/license" className="font-semibold text-primary underline-offset-2 hover:underline">
@@ -174,12 +204,15 @@ export default function BranchesPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, delay: Math.min(index, 6) * 0.04 }}
-              className="card-interactive p-5 flex flex-col justify-between"
+              className={`card-interactive p-5 flex flex-col justify-between${branch.licenseInactive ? " opacity-75" : ""}`}
             >
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 space-y-1.5">
                     <div className="flex flex-wrap gap-1.5">
+                      {inactiveCount > 0 && (branch.licenseInactive
+                        ? <Badge tone="warning">Nonaktif (lisensi)</Badge>
+                        : <Badge tone="success">Cabang aktif</Badge>)}
                       <Badge tone="primary">Radius {branch.radiusMeter} m</Badge>
                       <Badge icon={Users}>{branch.employeeCount ?? 0} karyawan</Badge>
                     </div>
@@ -210,8 +243,15 @@ export default function BranchesPage() {
                   </div>
                 </div>
               </div>
-              <div className="mt-4 pt-4 border-t border-line text-label text-muted font-mono tabular-nums">
-                {branch.lat.toFixed(6)}, {branch.lng.toFixed(6)}
+              <div className="mt-4 pt-4 border-t border-line flex flex-wrap items-center justify-between gap-2">
+                <span className="text-label text-muted font-mono tabular-nums">
+                  {branch.lat.toFixed(6)}, {branch.lng.toFixed(6)}
+                </span>
+                {branch.licenseInactive && (
+                  <Button size="sm" variant="secondary" loading={activating === branch._id} disabled={activating !== null} onClick={() => void makeActive(branch)}>
+                    Jadikan cabang aktif
+                  </Button>
+                )}
               </div>
             </motion.div>
           ))}

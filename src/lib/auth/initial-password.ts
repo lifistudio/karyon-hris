@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { connectToDatabase } from "@/lib/db";
-import { decrypt, encrypt } from "@/lib/crypto";
+import { decryptOrEmpty, encrypt } from "@/lib/crypto";
 import { HttpError } from "@/lib/guard";
 import { getSettings } from "@/lib/settings";
 import Setting from "@/models/Setting";
@@ -52,7 +52,7 @@ export async function readPolicy(): Promise<Record<string, RolePolicy>> {
   for (const { name } of roles) {
     const entry = stored.roles[name];
     out[name] = entry
-      ? { mode: entry.mode, password: entry.password ? decrypt(entry.password) : "" }
+      ? { mode: entry.mode, password: entry.password ? decryptOrEmpty(entry.password) : "" }
       : { mode: "random", password: "" };
   }
   return out;

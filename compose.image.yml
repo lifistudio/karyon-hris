@@ -55,6 +55,41 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
+      HRIS_DB_POOL_MAX: ${HRIS_DB_POOL_MAX:-10}
+      # Optional integrations. Only variables listed here reach the container; empty = off.
+      # Audit log: database (default), axiom, or http.
+      AUDIT_LOG_PROVIDER: ${AUDIT_LOG_PROVIDER:-database}
+      AXIOM_DATASET: ${AXIOM_DATASET:-}
+      AXIOM_TOKEN: ${AXIOM_TOKEN:-}
+      AUDIT_LOG_ENDPOINT: ${AUDIT_LOG_ENDPOINT:-}
+      AUDIT_LOG_TOKEN: ${AUDIT_LOG_TOKEN:-}
+      # WhatsApp: none, fonnte, twilio, qontak, or webhook.
+      WA_PROVIDER: ${WA_PROVIDER:-none}
+      FONNTE_TOKEN: ${FONNTE_TOKEN:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
+      QONTAK_API_TOKEN: ${QONTAK_API_TOKEN:-}
+      QONTAK_CHANNEL_INTEGRATION_ID: ${QONTAK_CHANNEL_INTEGRATION_ID:-}
+      QONTAK_TEMPLATE_ID: ${QONTAK_TEMPLATE_ID:-}
+      QONTAK_BASE_URL: ${QONTAK_BASE_URL:-}
+      QONTAK_DEFAULT_TO_NAME: ${QONTAK_DEFAULT_TO_NAME:-}
+      QONTAK_LANGUAGE_CODE: ${QONTAK_LANGUAGE_CODE:-}
+      NOTIFICATION_WEBHOOK_URL: ${NOTIFICATION_WEBHOOK_URL:-}
+      # Public career API and anti-bot for the application form.
+      PUBLIC_API_KEY: ${PUBLIC_API_KEY:-}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      # Address search for branch locations (HTTPS, Nominatim-compatible).
+      GEOCODING_SEARCH_URL: ${GEOCODING_SEARCH_URL:-}
+      GEOCODING_USER_AGENT: ${GEOCODING_USER_AGENT:-}
+      GEOCODING_PUBLIC_NOMINATIM_ACK: ${GEOCODING_PUBLIC_NOMINATIM_ACK:-}
+      # Corporate SSO (OIDC, Pro).
+      OIDC_NAME: ${OIDC_NAME:-}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      # true only when an external scheduler calls /api/v1/cron/daily with CRON_SECRET.
+      HRIS_DISABLE_SCHEDULER: ${HRIS_DISABLE_SCHEDULER:-}
       # License website (HTTPS) used by Lisensi & Paket for activation and lease renewal.
       HRIS_LICENSE_SERVER: ${HRIS_LICENSE_SERVER:-}
       # Only with compose.lifecycle.yml: lets the agent read the signed lease from this app.

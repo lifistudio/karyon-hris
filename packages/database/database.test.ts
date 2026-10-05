@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { PGlite } from "@electric-sql/pglite";
 import { Database, RecordId, Schema } from "./model";
-import { migrateSchema } from "./migrations";
+import { setupSchema } from "./schema-setup";
 import { normalize } from "./schema";
 
 test("schema string format validation is preserved", () => {
@@ -18,7 +18,7 @@ test("PostgreSQL native schema, constraints, queries and transactions", async ()
   const Position = db.model("Position", new Schema({ type: { type: String, default: "Full-Time" }, roleId: { type: Schema.Types.Id, ref: "Role" } }));
   const User = db.model("User", new Schema({ email: { type: String, required: true, lowercase: true, unique: true }, passwordHash: { type: String, select: false }, roleId: { type: Schema.Types.Id, ref: "Role", required: true }, active: { type: Boolean, default: true }, count: { type: Number, default: 0 }, expiresAt: Date, steps: [{ status: String, actor: String }], profile: { city: String }, tags: [String] }, { timestamps: true }));
   try {
-    await migrateSchema(db); await migrateSchema(db);
+    await setupSchema(db, "test"); await setupSchema(db, "test");
     const role = await Role.create({ name: "OWNER" });
     const position = await Position.create({ roleId: role._id });
     assert.equal((await Position.findById(position._id).populate("roleId", "name")).roleId.name, "OWNER");

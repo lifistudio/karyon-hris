@@ -1,6 +1,6 @@
 import { RecordId } from "@/lib/postgres";
 import database from "@/lib/postgres";
-import { decrypt } from "@/lib/crypto";
+import { decryptOrEmpty } from "@/lib/crypto";
 import { getSettings } from "@/lib/settings";
 import { formatDate, formatRupiah, wibDateKey } from "@/lib/time";
 import { contractTypeLabel, durationLabel } from "@/lib/hr/contracts";
@@ -58,7 +58,7 @@ export async function contractValues(
     jenis_kontrak: contractTypeLabel(contract.type, contract.customTypeLabel),
     nama: employee?.name ?? "",
     nip: employee?.employeeId ?? "",
-    nik: employee?.nik ? decrypt(employee.nik) : "",
+    nik: employee?.nik ? decryptOrEmpty(employee.nik) : "",
     tempat_lahir: employee?.birthPlace ?? "",
     tanggal_lahir: employee?.birthDate ? formatDate(employee.birthDate) : "",
     alamat: [addr?.street, addr?.subdistrict, addr?.city, addr?.province].filter(Boolean).join(", "),

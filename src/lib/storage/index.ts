@@ -1,5 +1,6 @@
 import type { StorageProvider } from "./StorageProvider";
 import { LocalProvider } from "./LocalProvider";
+import { looksLikeSvg } from "./image";
 
 /**
  * Provider selection happens once, from a single env variable, so swapping
@@ -82,6 +83,7 @@ export function decodeDataUrl(
     "image/jpeg": ".jpg",
     "image/png": ".png",
     "image/webp": ".webp",
+    "image/svg+xml": ".svg",
     "application/pdf": ".pdf",
   };
   const detected = sniffMime(buffer);
@@ -121,5 +123,7 @@ function sniffMime(buffer: Buffer): string | null {
   if (buffer.length >= 5 && buffer.subarray(0, 5).toString("ascii") === "%PDF-") {
     return "application/pdf";
   }
+  // Only reachable where a caller explicitly allows SVG; it is rasterised before storage.
+  if (looksLikeSvg(buffer)) return "image/svg+xml";
   return null;
 }

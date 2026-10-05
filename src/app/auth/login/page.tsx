@@ -1,7 +1,7 @@
 "use client";
 
-import React, { Suspense, useState } from "react";
-import { signIn } from "next-auth/react";
+import React, { Suspense, useEffect, useState } from "react";
+import { getProviders, signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AuthShell, PasswordInput } from "@/components/auth/AuthShell";
@@ -45,6 +45,11 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(messageFor(params.get("code") ?? params.get("error")));
+  // SSO is configured at runtime (OIDC_* env), so ask the server instead of a build-time flag.
+  const [ssoName, setSsoName] = useState("");
+  useEffect(() => {
+    getProviders().then((providers) => setSsoName(providers?.["corporate-sso"]?.name ?? "")).catch(() => setSsoName(""));
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,7 +140,7 @@ function LoginForm() {
         <Button type="submit" loading={loading} className="w-full justify-center" size="lg">
           {loading ? "Memverifikasi…" : "Masuk"}
         </Button>
-        {process.env.NEXT_PUBLIC_SSO_ENABLED === "true" && <Button type="button" variant="secondary" className="w-full justify-center" size="lg" onClick={() => signIn("corporate-sso", { redirectTo: callbackUrl })}>Masuk dengan SSO perusahaan</Button>}
+        {ssoName && <Button type="button" variant="secondary" className="w-full justify-center" size="lg" onClick={() => signIn("corporate-sso", { redirectTo: callbackUrl })}>Masuk dengan {ssoName}</Button>}
       </form>
     </AuthShell>
   );

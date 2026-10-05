@@ -51,18 +51,59 @@ export function schemaStatements(database: Database) {
   return [...statements, ...relations];
 }
 
-export async function migrateSchema(database: Database) {
-  const statements = schemaStatements(database);
+/** Raised when the database was created by another application version. */
+export class SchemaMismatchError extends Error {
+  code = "SCHEMA_MISMATCH";
+  constructor(detail: string) {
+    super(`${detail} Database ini dibuat oleh versi aplikasi lain. Untuk database uji/dummy, kosongkan dengan "npm run db:reset -- --confirm=<nama database>" lalu jalankan lagi; untuk data penting, cadangkan dulu.`);
+  }
+}
+
+const SCHEMA_TABLE = '"_schema"';
+
+/**
+ * Creates the complete schema on an empty database in one step: tables from the
+ * registered models, then `extra` statements (hand-written tables and singleton
+ * rows). A database already created with the same schema is left untouched; any
+ * other non-empty database is refused instead of being altered.
+ */
+export async function setupSchema(database: Database, name: string, extra: string[] = []) {
+  const statements = [...schemaStatements(database), ...extra];
   const checksum = createHash("sha256").update(statements.join(";\n")).digest("hex");
+  let created = false;
   await database.transaction(async () => {
-    await database.connection.query("SELECT pg_advisory_xact_lock(hashtext('hris-schema-migration'))");
-    await database.connection.query('CREATE TABLE IF NOT EXISTS "_schema_migrations" (version text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())');
-    const existing = await database.connection.query('SELECT checksum FROM "_schema_migrations" WHERE version=$1', ["001-postgresql"]);
-    if (existing.rows.length) { if (existing.rows[0].checksum !== checksum) throw new Error("Schema changed: create a new migration; never overwrite an applied migration"); return; }
+    await database.connection.query("SELECT pg_advisory_xact_lock(hashtext('hris-schema-setup'))");
+    // A failed query would abort this transaction, so look the marker table up first.
+    const hasMarker = (await database.connection.query("SELECT to_regclass('_schema') IS NOT NULL AS present")).rows[0].present;
+    const marker = hasMarker ? await database.connection.query(`SELECT checksum FROM ${SCHEMA_TABLE} WHERE name=$1`, [name]) : null;
+    if (marker?.rows.length) {
+      if (marker.rows[0].checksum !== checksum) throw new SchemaMismatchError("Struktur database tidak sama dengan versi aplikasi ini.");
+      return;
+    }
+    const tables = await database.connection.query("SELECT count(*)::int AS total FROM pg_tables WHERE schemaname = current_schema() AND tablename <> '_schema'");
+    if (tables.rows[0].total > 0) throw new SchemaMismatchError("Database sudah berisi tabel yang tidak dibuat oleh versi aplikasi ini.");
+    await database.connection.query(`CREATE TABLE IF NOT EXISTS ${SCHEMA_TABLE} (name text PRIMARY KEY, checksum text NOT NULL, created_at timestamptz NOT NULL DEFAULT now())`);
     for (const statement of statements) await database.connection.query(statement);
-    await database.connection.query('INSERT INTO "_schema_migrations" (version,checksum) VALUES ($1,$2)', ["001-postgresql", checksum]);
+    await database.connection.query(`INSERT INTO ${SCHEMA_TABLE} (name,checksum) VALUES ($1,$2)`, [name, checksum]);
+    created = true;
   });
-  return { tables: database.repositories.size, checksum };
+  return { tables: database.repositories.size, checksum, created };
+}
+
+/**
+ * Drops every table, view, sequence and function in the current schema. Only for
+ * test/dummy databases; the caller must confirm with the exact database name.
+ */
+export async function resetSchema(database: Database, confirmName: string) {
+  const current = (await database.connection.query("SELECT current_database() AS name")).rows[0].name as string;
+  if (!confirmName || confirmName !== current) throw new Error(`Konfirmasi tidak cocok. Jalankan dengan --confirm=${current} untuk menghapus seluruh isi database ini.`);
+  await database.transaction(async () => {
+    const tables = await database.connection.query("SELECT tablename FROM pg_tables WHERE schemaname = current_schema()");
+    for (const { tablename } of tables.rows) await database.connection.query(`DROP TABLE IF EXISTS ${ident(tablename)} CASCADE`);
+    const functions = await database.connection.query("SELECT p.oid::regprocedure::text AS signature FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = current_schema() AND p.prokind = 'f'");
+    for (const { signature } of functions.rows) await database.connection.query(`DROP FUNCTION IF EXISTS ${signature} CASCADE`);
+  });
+  return { database: current, dropped: "all" };
 }
 
 export async function purgeExpired(database: Database) {

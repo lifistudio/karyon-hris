@@ -3,6 +3,7 @@ import { wrapRouteHandler, apiSuccess } from "@/lib/api";
 import { requirePermission, parseBody, BadRequest } from "@/lib/guard";
 import { logActivity } from "@/lib/audit/logger";
 import { storageProvider, decodeDataUrl } from "@/lib/storage";
+import { optimizeImage } from "@/lib/storage/image";
 
 /**
  * Company logo used on printed documents.
@@ -32,9 +33,10 @@ export const POST = wrapRouteHandler(async (req) => {
   const ctx = await requirePermission(req, "settings", "write");
   const body = await parseBody(req, uploadSchema);
 
-  // SVG is allowed for crisp printing, but it can carry script, so it is only
-  // ever emitted inside an <img>, never inlined into the page as markup.
-  const { buffer, mime } = decodeDataUrl(body.dataUrl, ALLOWED);
+  // SVG is accepted and rendered to pixels (no script can survive); every logo is
+  // stored as WebP at print resolution.
+  const decoded = decodeDataUrl(body.dataUrl, ALLOWED);
+  const { buffer, mime } = await optimizeImage(decoded.buffer, { maxSide: 1200 }).catch((error: Error) => { throw BadRequest(error.message); });
 
   if (buffer.byteLength > MAX_LOGO_BYTES) {
     throw BadRequest(
@@ -50,7 +52,7 @@ export const POST = wrapRouteHandler(async (req) => {
 
   // A copy is also written to storage. Nothing reads it today; it exists so the
   // original is recoverable if a template is deleted by accident.
-  const key = `branding/logo-${Date.now()}.${mime.split("/")[1].replace("+xml", "")}`;
+  const key = `branding/logo-${Date.now()}.webp`;
   await storageProvider.upload(buffer, key, mime).catch(() => null);
 
   void logActivity({

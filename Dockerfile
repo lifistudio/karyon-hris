@@ -16,7 +16,7 @@ RUN addgroup -S nodejs -g 1001 && adduser -S nextjs -u 1001 -G nodejs && mkdir -
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/dist/db-migrate.cjs /app/dist/db-seed.cjs ./
+COPY --from=builder --chown=nextjs:nodejs /app/dist/db-setup.cjs /app/dist/db-seed.cjs ./
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/start-with-database.mjs ./
 USER nextjs
 EXPOSE 3000

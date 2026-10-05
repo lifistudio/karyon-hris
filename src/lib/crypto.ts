@@ -89,7 +89,20 @@ export function decrypt(value: string): string {
  * does not hide the whole record. Re-entering the value encrypts it again.
  */
 export function decryptOrEmpty(value: string, onUnreadable?: () => void): string {
-  try { return decrypt(value); } catch { onUnreadable?.(); return ""; }
+  try { return decrypt(value); } catch { warnUnreadableOnce(); onUnreadable?.(); return ""; }
+}
+
+let warnedUnreadable = false;
+/** One log line per process: the usual cause is a deployment started with a different ENCRYPTION_KEY. */
+function warnUnreadableOnce() {
+  if (warnedUnreadable) return;
+  warnedUnreadable = true;
+  console.warn("[CRYPTO] Data terenkripsi tidak dapat dibuka. Pastikan ENCRYPTION_KEY sama dengan kunci saat data dibuat (mis. .env instalasi lama).");
+}
+
+/** True for an encrypted value this server cannot open (damaged, or another ENCRYPTION_KEY). */
+export function isUnreadable(value: string): boolean {
+  try { decrypt(value); return false; } catch { return true; }
 }
 
 /** True when the value already carries an encrypted envelope. */

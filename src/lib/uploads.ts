@@ -3,6 +3,7 @@ import crypto from "crypto";
 import database from "@/lib/postgres";
 import { storageProvider, decodeDataUrl } from "@/lib/storage";
 import { sniffFile, KIND_LABEL } from "@/lib/storage/sniff";
+import { optimizeImage } from "@/lib/storage/image";
 import { HttpError } from "@/lib/guard";
 import PendingUpload from "@/models/PendingUpload";
 import {
@@ -45,14 +46,21 @@ export async function createPendingUpload({
     );
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const sniffed = sniffFile(buffer);
+  let buffer: Buffer = Buffer.from(await file.arrayBuffer());
+  let sniffed = sniffFile(buffer);
   if (!sniffed || !policy.kinds.includes(sniffed.kind)) {
     throw new HttpError(
       415,
       "UNSUPPORTED_FILE",
       `Jenis berkas tidak didukung. Gunakan ${policy.kinds.map((k) => KIND_LABEL[k]).join(", ")}.`
     );
+  }
+
+  // Images are stored as WebP (smaller, metadata removed); documents unchanged.
+  if (sniffed.kind === "jpeg" || sniffed.kind === "png" || sniffed.kind === "webp") {
+    const image = await optimizeImage(buffer).catch(() => { throw new HttpError(415, "UNSUPPORTED_FILE", "Gambar tidak dapat dibaca. Simpan ulang sebagai JPG atau PNG lalu unggah kembali."); });
+    buffer = image.buffer;
+    sniffed = { ...sniffed, kind: "webp", mime: image.mime, ext: image.ext };
   }
 
   const token = crypto.randomBytes(20).toString("hex");
@@ -66,14 +74,14 @@ export async function createPendingUpload({
     key,
     name: cleanName(file.name),
     mime: sniffed.mime,
-    size: file.size,
+    size: buffer.byteLength,
     context,
     ownerUserId: ownerUserId ? new RecordId(ownerUserId) : null,
     scope: scope ?? "",
     expiresAt: new Date(Date.now() + PENDING_TTL_MS),
   });
 
-  return { token, name: cleanName(file.name), size: file.size, mime: sniffed.mime, label: sniffed.label };
+  return { token, name: cleanName(file.name), size: buffer.byteLength, mime: sniffed.mime, label: sniffed.label };
 }
 
 /**
@@ -200,7 +208,8 @@ export async function resolveSingleAttachment({
     return stored ? (stored.kind === "file" ? stored.key : stored.url) : "";
   }
   if (legacyDataUrl) {
-    const { buffer, ext, mime } = decodeDataUrl(legacyDataUrl, ["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+    const decoded = decodeDataUrl(legacyDataUrl, ["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+    const { buffer, ext, mime } = decoded.mime === "application/pdf" ? decoded : await optimizeImage(decoded.buffer);
     return storageProvider.upload(buffer, `${destination.replace(/\/+$/, "")}/${Date.now()}${ext}`, mime);
   }
   return "";

@@ -65,6 +65,8 @@ interface Role { _id: string; name: string; }
 
 interface Employee {
   _id?: string;
+  /** Set by the API when NIK/NPWP/rekening could not be decrypted with this server's key. */
+  piiUnreadable?: boolean;
   employeeId: string;
   name: string;
   nik: string;
@@ -548,6 +550,14 @@ function EmployeesView() {
           </Button>
         }
       />
+
+      {employees.some((e) => e.piiUnreadable) && (
+        <Alert tone="warning" title="Sebagian data terenkripsi tidak dapat dibuka" className="mb-5">
+          NIK, NPWP, atau nomor rekening pada beberapa karyawan tampil kosong. Biasanya server ini memakai{" "}
+          <code>ENCRYPTION_KEY</code> yang berbeda dari saat data dibuat (misalnya database lama dipasang di server baru).
+          Pakai kembali kunci dari instalasi lama lalu restart aplikasi; jangan mengisi ulang data sebelum kunci dipastikan.
+        </Alert>
+      )}
 
       {newHireCount > 0 && view === "all" && (
         <Alert tone="info" title={`${newHireCount} karyawan baru perlu dilengkapi`} className="mb-5">

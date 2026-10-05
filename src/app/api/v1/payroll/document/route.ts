@@ -1,7 +1,7 @@
 import { wrapRouteHandler, apiSuccess } from "@/lib/api";
 import { requireUser, BadRequest, Forbidden, NotFound } from "@/lib/guard";
 import { checkPermission } from "@/lib/rbac";
-import { decrypt } from "@/lib/crypto";
+import { decryptOrEmpty } from "@/lib/crypto";
 import { logActivity } from "@/lib/audit/logger";
 import { getSettings } from "@/lib/settings";
 import { formatDate } from "@/lib/time";
@@ -111,8 +111,8 @@ export const GET = wrapRouteHandler(async (req) => {
       bankName: bank?.bankName ?? "",
       // Decrypted only for the owner or a company-wide reader, which is exactly
       // who reached this point.
-      bankAccount: bank?.accountNumber ? decrypt(bank.accountNumber) : "",
-      npwp: employee.npwp ? decrypt(employee.npwp as string) : "",
+      bankAccount: bank?.accountNumber ? decryptOrEmpty(bank.accountNumber) : "",
+      npwp: employee.npwp ? decryptOrEmpty(employee.npwp as string) : "",
     },
     basicSalary: (payroll.basicSalary as number) ?? 0,
     allowances: (payroll.allowances as Array<{ name: string; amount: number }>) ?? [],

@@ -72,7 +72,7 @@ export function LogoField({
         <div className="flex-1 min-w-0">
           <p className="text-body-sm font-medium text-foreground">Logo perusahaan</p>
           <p className="text-label text-muted leading-relaxed mt-0.5">
-            PNG, JPG, WebP, atau SVG. Maksimal 256 KB — logo kop tidak perlu beresolusi tinggi.
+            PNG, JPG, WebP, atau SVG; otomatis dikonversi ke WebP. Hasil maksimal 256 KB — logo kop tidak perlu beresolusi tinggi.
           </p>
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <input

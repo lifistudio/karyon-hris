@@ -14,7 +14,8 @@ import {
 } from "@/lib/guard";
 import { checkPermission } from "@/lib/rbac";
 import { logActivity } from "@/lib/audit/logger";
-import { decryptOrEmpty, encryptOnce, maskTail } from "@/lib/crypto";
+import { decryptOrEmpty, encryptOnce, isUnreadable, maskTail } from "@/lib/crypto";
+import { getBranchAccess, isBranchUsable, INACTIVE_BRANCH_MESSAGE } from "@/lib/licensing/branch-access";
 import { getSettings } from "@/lib/settings";
 import Employee from "@/models/Employee";
 import User from "@/models/User";
@@ -263,6 +264,16 @@ export const POST = wrapRouteHandler(async (req) => {
       delete payload.branchId;
       delete payload.divisionId;
     }
+    if (payload.branchId && String(payload.branchId) !== String(existing.branchId ?? "") && !isBranchUsable(await getBranchAccess(), payload.branchId)) {
+      throw BadRequest(INACTIVE_BRANCH_MESSAGE);
+    }
+    // A value this server cannot decrypt (different ENCRYPTION_KEY) reaches the form
+    // empty. Saving that form must not wipe the stored value.
+    if (payload.nik === "" && existing.nik && isUnreadable(existing.nik)) delete payload.nik;
+    if (payload.npwp === "" && existing.npwp && isUnreadable(existing.npwp)) delete payload.npwp;
+    const storedAccount = (existing.bankAccount as { accountNumber?: string } | undefined)?.accountNumber;
+    const bankPayload = payload.bankAccount as { accountNumber?: string } | undefined;
+    if (bankPayload && bankPayload.accountNumber === "" && storedAccount && isUnreadable(storedAccount)) bankPayload.accountNumber = storedAccount;
     if (body.status) {
       payload.status = body.status;
       if (body.status === "resigned" || body.status === "suspended") {
@@ -343,6 +354,7 @@ export const POST = wrapRouteHandler(async (req) => {
   }
 
   /* --- create -------------------------------------------------------- */
+  if (body.branchId && !isBranchUsable(await getBranchAccess(), body.branchId)) throw BadRequest(INACTIVE_BRANCH_MESSAGE);
   const emailTaken = await User.findOne({ email: body.officeEmail }).lean();
   if (emailTaken) throw Conflict(`Email ${body.officeEmail} sudah digunakan akun lain.`);
 

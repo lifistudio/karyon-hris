@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { PGlite } from "@electric-sql/pglite";
 import database from "./postgres";
 import "./postgres-models";
-import { migrateSchema } from "../../packages/database/migrations";
+import { setupSchema } from "../../packages/database/schema-setup";
 import { seed } from "../scripts/seed";
 import { seedDemo } from "../scripts/seed-demo";
 import Employee from "../models/Employee";
@@ -15,7 +15,7 @@ import { resolveSchedule } from "./hr/calendar";
 test("every HRIS model creates a relational PostgreSQL schema", async () => {
   const pg = new PGlite(); database.connection.testDriver = pg;
   try {
-    const result = await migrateSchema(database);
+    const result = await setupSchema(database, "hris");
     assert.ok(result.tables >= 46);
     const constraints = await pg.query("SELECT count(*)::int AS count FROM information_schema.table_constraints WHERE constraint_type='FOREIGN KEY'");
     assert.ok((constraints.rows[0] as {count:number}).count > 30);

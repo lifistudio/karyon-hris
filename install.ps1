@@ -48,14 +48,46 @@ foreach ($name in @('compose.image.yml','compose.manager.yml','compose.external.
   if ($content -notmatch '(?m)^services:\s*$') { throw "File $name bukan konfigurasi Docker Compose yang valid. Periksa $RawBase/$name." }
   Write-InstallFile $name $content
 }
+function Docker-Quiet([string[]]$Arguments) {
+  # Windows PowerShell 5.1 turns native stderr into terminating errors; these probes may fail harmlessly.
+  $probePreference=$ErrorActionPreference
+  try { $ErrorActionPreference='Continue'; $output = & docker @Arguments 2>$null; return @($output | Where-Object { $_ }) } catch { return @() } finally { $ErrorActionPreference=$probePreference }
+}
+# A Compose project name owns its database volume. Reusing the name of an earlier installation
+# (another folder, or a deleted .env) would attach new passwords and keys to old data.
+function Test-ProjectInUse([string]$Name) {
+  if (!(Get-Command docker -ErrorAction SilentlyContinue)) { return $false }
+  $label = "label=com.docker.compose.project=$Name"
+  return ((Docker-Quiet @('volume','ls','-q','--filter',$label)).Count + (Docker-Quiet @('ps','-aq','--filter',$label)).Count) -gt 0
+}
 $newInstall = !(Test-Path -LiteralPath (Join-Path $installPath '.env'))
 if ($newInstall) {
+  if (Test-ProjectInUse $ProjectName) {
+    if ($PSBoundParameters.ContainsKey('ProjectName')) { throw "Nama proyek '$ProjectName' sudah dipakai instalasi HRIS lain di Docker ini (container atau volume database lama). Pilih -ProjectName lain, atau jalankan installer di folder instalasi lama agar .env dan datanya tetap dipakai." }
+    $baseName = $ProjectName
+    $suffix = 2
+    while ((Test-ProjectInUse "$baseName-$suffix") -and $suffix -lt 50) { $suffix++ }
+    $ProjectName = "$baseName-$suffix"
+    Write-Host "Docker ini sudah memiliki instalasi HRIS lain (proyek '$baseName'). Instalasi baru memakai proyek '$ProjectName' agar database lama tidak tertimpa atau tercampur."
+  }
   if ($Url -eq 'http://localhost:3000') { $Url = "http://localhost:$Port" }
   $settings = [ordered]@{ COMPOSE_PROJECT_NAME=$ProjectName; HRIS_IMAGE=$Image; HRIS_EDITION='community'; BIND_ADDRESS='127.0.0.1'; APP_PORT=$Port; NEXTAUTH_URL=$Url.TrimEnd('/'); TRUST_PROXY='0'; HRIS_LICENSE_SERVER=$LicenseServer.TrimEnd('/'); HRIS_DB_NAME='hris'; HRIS_DB_USER='hris'; HRIS_DATABASE_URL=''; HRIS_DB_SSL='disable' }
   foreach ($key in @('POSTGRES_ADMIN_PASSWORD','HRIS_DB_PASSWORD','AUTH_SECRET','ENCRYPTION_KEY','STORAGE_SIGNING_SECRET','CRON_SECRET','HRIS_MANAGER_TOKEN','HRIS_AGENT_TOKEN')) { $settings[$key] = Random-Hex }
   foreach ($entry in @(@('EMAIL_PROVIDER','smtp'),@('EMAIL_FROM',''),@('SMTP_HOST',''),@('SMTP_PORT','587'),@('SMTP_USER',''),@('SMTP_PASS',''),@('RESEND_API_KEY',''))) { $settings[$entry[0]] = $entry[1] }
   $envHeader = "# Dibuat oleh installer HRIS. Simpan privat dan backup bersama database.`n# Secret inti diisi otomatis; jangan diganti setelah data tersimpan.`n# Email opsional saat instalasi, tetapi wajib dikonfigurasi sebelum mengirim OTP/notifikasi.`n# Pilih SMTP atau Resend dan gunakan alamat pengirim dari domain yang sudah diverifikasi.`n"
-  Write-InstallFile '.env' ($envHeader + (($settings.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join "`n"))
+  $optionalSettings = @(
+    '', '# --- Opsional: kosong = nonaktif. Jalankan "docker compose up -d" setelah mengubah. ---',
+    '# Ukuran pool koneksi database aplikasi.', 'HRIS_DB_POOL_MAX=10',
+    '# Log audit: database (bawaan), axiom, atau http.', 'AUDIT_LOG_PROVIDER=database', 'AXIOM_DATASET=', 'AXIOM_TOKEN=', 'AUDIT_LOG_ENDPOINT=', 'AUDIT_LOG_TOKEN=',
+    '# WhatsApp: none, fonnte, twilio, qontak, atau webhook.', 'WA_PROVIDER=none', 'FONNTE_TOKEN=', 'TWILIO_ACCOUNT_SID=', 'TWILIO_AUTH_TOKEN=', 'TWILIO_FROM_NUMBER=',
+    'QONTAK_API_TOKEN=', 'QONTAK_CHANNEL_INTEGRATION_ID=', 'QONTAK_TEMPLATE_ID=', 'QONTAK_BASE_URL=', 'QONTAK_DEFAULT_TO_NAME=', 'QONTAK_LANGUAGE_CODE=',
+    '# Dipakai bila EMAIL_PROVIDER atau WA_PROVIDER = webhook (JSON POST).', 'NOTIFICATION_WEBHOOK_URL=',
+    '# API lamaran publik (header x-api-key) dan Cloudflare Turnstile untuk form karier.', 'PUBLIC_API_KEY=', 'TURNSTILE_SECRET_KEY=',
+    '# Pencarian alamat cabang (HTTPS, kompatibel Nominatim).', 'GEOCODING_SEARCH_URL=', 'GEOCODING_USER_AGENT=', 'GEOCODING_PUBLIC_NOMINATIM_ACK=',
+    '# SSO perusahaan OIDC (Pro).', 'OIDC_NAME=', 'OIDC_ISSUER=', 'OIDC_CLIENT_ID=', 'OIDC_CLIENT_SECRET=',
+    '# true hanya bila penjadwal eksternal memanggil /api/v1/cron/daily dengan CRON_SECRET.', 'HRIS_DISABLE_SCHEDULER='
+  ) -join "`n"
+  Write-InstallFile '.env' ($envHeader + (($settings.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join "`n") + $optionalSettings + "`n")
   Write-InstallFile '.bootstrap-pending' $AdminEmail
 }
 if ((Read-Setting 'COMPOSE_FILE') -like '*compose.lifecycle.yml*') { throw 'Instalasi memakai agent lifecycle lama. Pertahankan konfigurasi tersebut; migrasikan overlay sebelum mengaktifkan manager baru.' }
@@ -74,6 +106,22 @@ try {
   Docker-Run @('info','--format','{{.OSType}}')
   Docker-Run @('compose','version')
   Docker-Run @('compose','pull')
+  if ($composeFiles -notcontains 'compose.external.yml') {
+    & docker compose up -d --wait postgres
+    if ($LASTEXITCODE -ne 0) { throw 'Database bawaan belum siap. Periksa: docker compose logs postgres' }
+    # The init script only runs on an empty volume. Keep the application role and database in
+    # line with .env on every run, so a changed HRIS_DB_PASSWORD never locks the app out.
+    $roleSql = @(
+      '\getenv app_user APP_DB_USER',
+      '\getenv app_password APP_DB_PASSWORD',
+      '\getenv app_db APP_DB_NAME',
+      "SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE', :'app_user') WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'app_user') \gexec",
+      "ALTER ROLE :`"app_user`" WITH LOGIN PASSWORD :'app_password';",
+      "SELECT format('CREATE DATABASE %I OWNER %I', :'app_db', :'app_user') WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'app_db') \gexec"
+    ) -join "`n"
+    $roleSql | & docker compose exec -T postgres psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres
+    if ($LASTEXITCODE -ne 0) { throw 'Akun database aplikasi tidak dapat disiapkan. Periksa: docker compose logs postgres' }
+  }
   & docker compose up -d
   if ($LASTEXITCODE -ne 0) { throw "Container belum bisa dijalankan. Jika pesan di atas menyebut 'port is already allocated', port $(Read-Setting 'APP_PORT') sudah dipakai aplikasi lain: ubah APP_PORT (dan NEXTAUTH_URL bila memakai localhost) di $installPath\.env ke port lain, lalu jalankan 'docker compose up -d' di folder itu." }
   $healthy = $false
@@ -89,7 +137,11 @@ try {
     if ($probeExit -eq 0) { $healthy = $true; break }
     Start-Sleep -Seconds 3
   }
-  if (!$healthy) { throw 'HRIS belum siap. Periksa: docker compose logs app' }
+  if (!$healthy) {
+    Write-Host 'Log terakhir aplikasi:'
+    Docker-Quiet @('compose','logs','--no-color','--tail','25','app') | ForEach-Object { Write-Host "  $_" }
+    throw 'HRIS belum siap. Periksa log di atas atau jalankan: docker compose logs app'
+  }
   $pending = Join-Path $installPath '.bootstrap-pending'
   if (Test-Path -LiteralPath $pending) {
     $oldEmail=$env:SEED_ADMIN_EMAIL; $oldPassword=$env:SEED_ADMIN_PASSWORD

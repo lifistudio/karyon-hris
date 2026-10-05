@@ -28,6 +28,7 @@ BUILD_SRC=""
 SITE_URL=""
 PORT="3000"
 PROJECT_NAME="hris"
+PROJECT_NAME_SET="no"
 BIND="127.0.0.1"
 ADMIN_EMAIL=""
 TRUST_PROXY="0"
@@ -64,7 +65,7 @@ while [ $# -gt 0 ]; do
     --build) BUILD_SRC="$2"; shift 2 ;;
     --url) SITE_URL="$2"; shift 2 ;;
     --port) PORT="$2"; shift 2 ;;
-    --project-name) PROJECT_NAME="$2"; shift 2 ;;
+    --project-name) PROJECT_NAME="$2"; PROJECT_NAME_SET="yes"; shift 2 ;;
     --bind) BIND="$2"; shift 2 ;;
     --trust-proxy) TRUST_PROXY="$2"; shift 2 ;;
     --admin-email) ADMIN_EMAIL="$2"; shift 2 ;;
@@ -168,6 +169,19 @@ if [ -f .env ]; then
   if [ -n "$IMAGE" ]; then set_env HRIS_IMAGE "$IMAGE"; fi
 else
   NEW_INSTALL="yes"
+  # A Compose project name owns its database volume. Reusing the name of an earlier
+  # installation (another folder, or a deleted .env) would pair new passwords with old data.
+  project_in_use() {
+    [ -n "$(docker volume ls -q --filter "label=com.docker.compose.project=$1" 2>/dev/null)$(docker ps -aq --filter "label=com.docker.compose.project=$1" 2>/dev/null)" ]
+  }
+  if project_in_use "$PROJECT_NAME"; then
+    [ "$PROJECT_NAME_SET" = "no" ] || fail "Project name '$PROJECT_NAME' is already used by another HRIS installation on this Docker host (old containers or database volume). Pass another --project-name, or run the installer in the old installation folder."
+    base_name="$PROJECT_NAME"
+    suffix=2
+    while project_in_use "$base_name-$suffix" && [ "$suffix" -lt 50 ]; do suffix=$((suffix + 1)); done
+    PROJECT_NAME="$base_name-$suffix"
+    say "Docker already has another HRIS installation (project '$base_name'). This installation uses project '$PROJECT_NAME' so the old database is never reused."
+  fi
   if [ -n "$BUILD_SRC" ]; then
     [ -f "$BUILD_SRC/Dockerfile" ] || fail "--build expects an HRIS source directory containing Dockerfile."
     IMAGE="hris-local:$(date +%Y%m%d%H%M%S)"
@@ -215,6 +229,27 @@ else
     say "SMTP_USER="
     say "SMTP_PASS="
     say "RESEND_API_KEY="
+    say ""
+    say "# --- Opsional: kosong = nonaktif. Jalankan 'docker compose up -d' setelah mengubah. ---"
+    say "# Ukuran pool koneksi database aplikasi."
+    say "HRIS_DB_POOL_MAX=10"
+    say "# Log audit: database (bawaan), axiom, atau http."
+    say "AUDIT_LOG_PROVIDER=database"
+    for key in AXIOM_DATASET AXIOM_TOKEN AUDIT_LOG_ENDPOINT AUDIT_LOG_TOKEN; do say "$key="; done
+    say "# WhatsApp: none, fonnte, twilio, qontak, atau webhook."
+    say "WA_PROVIDER=none"
+    for key in FONNTE_TOKEN TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN TWILIO_FROM_NUMBER QONTAK_API_TOKEN QONTAK_CHANNEL_INTEGRATION_ID QONTAK_TEMPLATE_ID QONTAK_BASE_URL QONTAK_DEFAULT_TO_NAME QONTAK_LANGUAGE_CODE; do say "$key="; done
+    say "# Dipakai bila EMAIL_PROVIDER atau WA_PROVIDER = webhook (JSON POST)."
+    say "NOTIFICATION_WEBHOOK_URL="
+    say "# API lamaran publik (header x-api-key) dan Cloudflare Turnstile untuk form karier."
+    say "PUBLIC_API_KEY="
+    say "TURNSTILE_SECRET_KEY="
+    say "# Pencarian alamat cabang (HTTPS, kompatibel Nominatim)."
+    for key in GEOCODING_SEARCH_URL GEOCODING_USER_AGENT GEOCODING_PUBLIC_NOMINATIM_ACK; do say "$key="; done
+    say "# SSO perusahaan OIDC (Pro)."
+    for key in OIDC_NAME OIDC_ISSUER OIDC_CLIENT_ID OIDC_CLIENT_SECRET; do say "$key="; done
+    say "# true hanya bila penjadwal eksternal memanggil /api/v1/cron/daily dengan CRON_SECRET."
+    say "HRIS_DISABLE_SCHEDULER="
   } > .env
   chmod 600 .env
   printf '%s' "$ADMIN_EMAIL" > .bootstrap-pending
@@ -308,6 +343,19 @@ elif ! docker compose pull; then
   if [ -n "$PREVIOUS_IMAGE" ]; then set_env HRIS_IMAGE "$PREVIOUS_IMAGE"; set_env HRIS_EDITION community; fi
   fail "Pull failed; nothing was changed. Check that the license is active, then create a new upgrade command."
 fi
+if [ -z "$(get_env HRIS_DATABASE_URL)" ]; then
+  docker compose up -d --wait postgres || fail "The bundled database did not start. Details: docker compose logs postgres"
+  # The init script only runs on an empty volume. Keep the application role and database in
+  # line with .env on every run, so a changed HRIS_DB_PASSWORD never locks the app out.
+  docker compose exec -T postgres psql -q -v ON_ERROR_STOP=1 -U postgres -d postgres <<'SQL' || fail "Could not prepare the application database role. Details: docker compose logs postgres"
+\getenv app_user APP_DB_USER
+\getenv app_password APP_DB_PASSWORD
+\getenv app_db APP_DB_NAME
+SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE', :'app_user') WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'app_user') \gexec
+ALTER ROLE :"app_user" WITH LOGIN PASSWORD :'app_password';
+SELECT format('CREATE DATABASE %I OWNER %I', :'app_db', :'app_user') WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'app_db') \gexec
+SQL
+fi
 if ! docker compose up -d; then
   say "" >&2
   say "If the error mentions 'port is already allocated' or 'address already in use', port $(get_env APP_PORT) is taken." >&2
@@ -326,6 +374,8 @@ until docker compose exec -T app wget -q -O /dev/null http://127.0.0.1:3000/api/
       set_env HRIS_EDITION community
       docker compose up -d app
     fi
+    say "Last application log lines:" >&2
+    docker compose logs --no-color --tail 25 app >&2 2>/dev/null || true
     fail "HRIS did not become healthy. Check: docker compose logs app"
   fi
   sleep 3

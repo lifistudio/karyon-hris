@@ -7,6 +7,7 @@ import { RATE_RULES, clientIp } from "@/lib/rate-limit";
 import { connectToDatabase } from "@/lib/db";
 import { logActivity } from "@/lib/audit/logger";
 import { storageProvider, decodeDataUrl } from "@/lib/storage";
+import { optimizeImage } from "@/lib/storage/image";
 import { safeEqual } from "@/lib/crypto";
 import { notifyUsers, resolveRecipientsByRole } from "@/lib/notification/notify";
 import { buildAnswersSchema } from "@/lib/hr/application-form";
@@ -129,7 +130,9 @@ export const POST = wrapRouteHandler(async (req) => {
   });
 
   if (legacy && body.cv) {
-    const { buffer, ext, mime } = decodeDataUrl(body.cv, ["application/pdf", "image/jpeg", "image/png"]);
+    const decoded = decodeDataUrl(body.cv, ["application/pdf", "image/jpeg", "image/png"]);
+    // A photographed CV is stored as WebP like every other image; a PDF is kept as is.
+    const { buffer, ext, mime } = decoded.mime === "application/pdf" ? decoded : await optimizeImage(decoded.buffer);
     const key = await storageProvider.upload(buffer, `candidates/${String(vacancy._id)}/${String(candidateId)}/cv${ext}`, mime);
     const cvAnswer = stored.find((a) => a.system === "cv");
     const attachment = { kind: "file" as const, key, name: `cv${ext}`, mime, size: buffer.byteLength };
