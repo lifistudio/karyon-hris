@@ -69,7 +69,7 @@ export const ADMIN_ROLES = ["SUPERADMIN", "DIREKSI", "HRD", "AUDIT", "GA", "SPV"
  */
 const SESSION_ONLY_PREFIXES = [
   "/api/v1/auth/", "/api/v1/notifications", "/api/v1/face", "/api/v1/uploads", "/api/v1/approvals",
-  "/api/v1/complaints", "/api/v1/birthdays", "/api/v1/docs", "/api/v1/license", "/api/v1/integrations/",
+  "/api/v1/complaints", "/api/v1/birthdays", "/api/v1/docs", "/api/v1/license", "/api/v1/integrations/", "/api/v1/system/",
 ];
 
 /**

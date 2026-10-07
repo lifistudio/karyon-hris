@@ -65,3 +65,47 @@ for(const stage of ["downloading","restarting","checking","rolling_back"]){
     }finally{await rm(directory,{recursive:true,force:true});}
   });
 }
+
+for(const scenario of ["success","health-failure","not-allowed","external-db"]){
+  test(`version update: ${scenario}`,async()=>{
+    const {allowedUpdate}=await import("./manager.mjs");
+    const directory=await mkdtemp(join(tmpdir(),"hris-update-test-")),calls=[],files=[];
+    const compose=scenario==="external-db"?"compose.image.yml:compose.manager.yml:compose.external.yml":"compose.image.yml:compose.manager.yml";
+    await writeFile(join(directory,".env"),`HRIS_IMAGE=ghcr.io/lifistudio/hris:1.0.0\nENCRYPTION_KEY=unchanged\nHRIS_DB_NAME=hris\nCOMPOSE_FILE=${compose}\n`);
+    let switchedTo="";
+    const manager=new UpgradeManager({directory,data:join(directory,"data"),licenseServer:"https://license.example",siteOrigin:"https://hr.example",project:"hris",delay:async()=>{},
+      run:async(args)=>{calls.push(args);if(args.includes("ps"))return "a".repeat(64);if(args[0]==="inspect")return `sha256:${"b".repeat(64)}`;if(args.includes("up"))switchedTo=(await readFile(join(directory,".env"),"utf8")).match(/HRIS_IMAGE=(.*)/)[1];return "";},
+      runToFile:async(args,file)=>{files.push(args);await writeFile(file,"PGDMP");},
+      health:async()=>!(scenario==="health-failure"&&switchedTo.endsWith(":1.1.0")),
+    });
+    const target=scenario==="not-allowed"?"evil.example/hris:1.1.0":"ghcr.io/lifistudio/hris:1.1.0";
+    assert.equal(manager.startUpdate(target),true);
+    await manager.completion;
+    const env=await readFile(join(directory,".env"),"utf8");
+    assert.match(env,/ENCRYPTION_KEY=unchanged/);
+    if(scenario==="success"){
+      assert.equal(manager.state.stage,"complete");
+      assert.match(env,/HRIS_IMAGE=ghcr.io\/lifistudio\/hris:1.1.0/);
+      assert.equal(files.length,1,"bundled database backed up first");
+      assert.deepEqual(files[0].slice(-8),["exec","-T","postgres","pg_dump","-U","postgres","-Fc","hris"]);
+      assert.equal((await manager.listBackups()).length,1);
+      assert.equal(manager.status().previousImage,"ghcr.io/lifistudio/hris:1.0.0");
+      // Rollback returns to the previous tag; a second rollback goes forward again.
+      assert.equal(manager.startRollback(),true);await manager.completion;
+      assert.match(await readFile(join(directory,".env"),"utf8"),/HRIS_IMAGE=ghcr.io\/lifistudio\/hris:1.0.0/);
+      assert.equal(manager.status().previousImage,"ghcr.io/lifistudio/hris:1.1.0");
+    }
+    if(scenario==="health-failure"){
+      assert.equal(manager.state.code,"UPDATE_ROLLED_BACK");
+      assert.match(env,/HRIS_IMAGE=ghcr.io\/lifistudio\/hris:1.0.0/,"installation returned to the previous version");
+    }
+    if(scenario==="not-allowed"){
+      assert.equal(manager.state.code,"IMAGE_NOT_ALLOWED");
+      assert.equal(calls.some(a=>a.includes("pull")),false);
+    }
+    if(scenario==="external-db"){assert.equal(manager.state.stage,"complete");assert.equal(files.length,0,"external database is not dumped");}
+    assert.equal(allowedUpdate("ghcr.io/lifistudio/hris:2.0.0","ghcr.io/lifistudio/hris:1.0.0","ghcr.io/lifistudio/hris"),true);
+    assert.equal(allowedUpdate("ghcr.io/lifistudio/hris@sha256:abc","ghcr.io/lifistudio/hris:1.0.0","ghcr.io/lifistudio/hris"),false);
+    await rm(directory,{recursive:true,force:true});
+  });
+}

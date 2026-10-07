@@ -174,13 +174,6 @@ export async function deactivateLicense(): Promise<{ remoteReleased: boolean }> 
   return { remoteReleased };
 }
 
-/** One-time code for `install.sh --upgrade-code`, valid 15 minutes. */
-export async function createUpgradeCode() {
-  const current = await readActivation();
-  if (!current?.activationSecret) throw new LicenseServerError("Aktifkan license key terlebih dahulu.");
-  return call<{ code: string; expiresAt: string }>("/api/licenses/upgrade-code", { installationId: current.installationId, activationSecret: current.activationSecret, siteOrigin: siteOrigin() });
-}
-
 /** Unverified view of the stored lease for display only; the Pro build verifies the signature. */
 export async function activationSummary() {
   const current = await readActivation();

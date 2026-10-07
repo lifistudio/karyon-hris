@@ -11,6 +11,8 @@ RUN npm run build && npm run build:db
 
 FROM node:24-alpine AS runner
 WORKDIR /app
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 RUN addgroup -S nodejs -g 1001 && adduser -S nextjs -u 1001 -G nodejs && mkdir -p /app/storage && chown nextjs:nodejs /app/storage
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

@@ -22,7 +22,7 @@
     "db:reset": "tsx --tsconfig tsconfig.json --env-file=.env scripts/postgres.ts --app=hris --action=reset",
     "db:check": "tsx --tsconfig tsconfig.json --env-file=.env scripts/postgres.ts --app=hris --action=check",
     "db:cleanup": "tsx --tsconfig tsconfig.json --env-file=.env scripts/postgres.ts --app=hris --action=cleanup",
-    "test:postgres": "tsx --tsconfig tsconfig.json --test packages/database/database.test.ts src/lib/postgres.test.ts",
+    "test:postgres": "tsx --tsconfig tsconfig.json --test packages/database/database.test.ts src/lib/postgres.test.ts packages/database/schema-sync.test.ts",
     "test:images": "tsx --tsconfig tsconfig.json --test src/lib/storage/image.test.ts"
   },
   "dependencies": {

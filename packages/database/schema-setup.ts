@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { Database } from "./model";
 import { descriptor, ident, literal, sqlType } from "./schema";
 import { SqlBuilder } from "./query";
+import { syncSchema } from "./schema-sync";
 
 const name = (prefix: string, source: string) => `${prefix}_${createHash("sha256").update(source).digest("hex").slice(0,16)}`;
 export function schemaStatements(database: Database) {
@@ -51,43 +52,21 @@ export function schemaStatements(database: Database) {
   return [...statements, ...relations];
 }
 
-/** Raised when the database was created by another application version. */
-export class SchemaMismatchError extends Error {
-  code = "SCHEMA_MISMATCH";
-  constructor(detail: string) {
-    super(`${detail} Database ini dibuat oleh versi aplikasi lain. Untuk database uji/dummy, kosongkan dengan "npm run db:reset -- --confirm=<nama database>" lalu jalankan lagi; untuk data penting, cadangkan dulu.`);
-  }
-}
-
-const SCHEMA_TABLE = '"_schema"';
-
 /**
- * Creates the complete schema on an empty database in one step: tables from the
- * registered models, then `extra` statements (hand-written tables and singleton
- * rows). A database already created with the same schema is left untouched; any
- * other non-empty database is refused instead of being altered.
+ * Prepares the database for this version: creates everything on an empty
+ * database, or safely adds what an existing database (older version, earlier
+ * installation, restored backup) is missing. Never drops data; see schema-sync.ts.
  */
-export async function setupSchema(database: Database, name: string, extra: string[] = []) {
-  const statements = [...schemaStatements(database), ...extra];
-  const checksum = createHash("sha256").update(statements.join(";\n")).digest("hex");
-  let created = false;
-  await database.transaction(async () => {
-    await database.connection.query("SELECT pg_advisory_xact_lock(hashtext('hris-schema-setup'))");
-    // A failed query would abort this transaction, so look the marker table up first.
-    const hasMarker = (await database.connection.query("SELECT to_regclass('_schema') IS NOT NULL AS present")).rows[0].present;
-    const marker = hasMarker ? await database.connection.query(`SELECT checksum FROM ${SCHEMA_TABLE} WHERE name=$1`, [name]) : null;
-    if (marker?.rows.length) {
-      if (marker.rows[0].checksum !== checksum) throw new SchemaMismatchError("Struktur database tidak sama dengan versi aplikasi ini.");
-      return;
-    }
-    const tables = await database.connection.query("SELECT count(*)::int AS total FROM pg_tables WHERE schemaname = current_schema() AND tablename <> '_schema'");
-    if (tables.rows[0].total > 0) throw new SchemaMismatchError("Database sudah berisi tabel yang tidak dibuat oleh versi aplikasi ini.");
-    await database.connection.query(`CREATE TABLE IF NOT EXISTS ${SCHEMA_TABLE} (name text PRIMARY KEY, checksum text NOT NULL, created_at timestamptz NOT NULL DEFAULT now())`);
-    for (const statement of statements) await database.connection.query(statement);
-    await database.connection.query(`INSERT INTO ${SCHEMA_TABLE} (name,checksum) VALUES ($1,$2)`, [name, checksum]);
-    created = true;
-  });
-  return { tables: database.repositories.size, checksum, created };
+export async function setupSchema(database: Database, name: string, extra: string[] = [], appVersion = process.env.APP_VERSION ?? "") {
+  const models = schemaStatements(database);
+  const result = await syncSchema(database, name, [...models, ...extra], appVersion);
+  // Releases before the version marker look for this record and otherwise try to create
+  // every table again (PostgreSQL error 42P07). Writing it lets such an older image start
+  // on this database, so rolling back to it keeps working.
+  await database.connection.query('CREATE TABLE IF NOT EXISTS "_schema_migrations" (version text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())');
+  await database.connection.query('INSERT INTO "_schema_migrations"(version,checksum) VALUES ($1,$2) ON CONFLICT (version) DO NOTHING',
+    ["001-postgresql", createHash("sha256").update(models.join(";\n")).digest("hex")]);
+  return { tables: database.repositories.size, ...result };
 }
 
 /**

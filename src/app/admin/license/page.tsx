@@ -2,11 +2,12 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { ArrowUpCircle, CheckCircle2, Copy, KeyRound, Lock, RefreshCw, ShieldCheck, Terminal, Unplug } from "lucide-react";
+import { CheckCircle2, KeyRound, Lock, RefreshCw, ShieldCheck, Unplug } from "lucide-react";
 import { Alert, Badge, Button, Card, CardBody, CardHeader, ConfirmDialog, ErrorState, Field, Input, PageHeader, Skeleton } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/client-api";
 import { invalidateLicense } from "@/lib/use-license";
+import { AppUpdatePanel } from "@/components/admin/AppUpdatePanel";
 
 type LicenseState = "active" | "expired" | "suspended" | "released" | null;
 type Activation =
@@ -15,11 +16,8 @@ type Activation =
 type Snapshot = {
   plan: string; status: string; features: string[]; expiresAt: string | null; graceUntil: string | null; installationId: string | null; source: string;
   edition: "community" | "pro"; featureLabels: Record<string, string>; activation: Activation; licenseServer: string | null;
-  upgrade?: { available: boolean; stage: string; code?: string };
 };
-type UpgradeCode = { code: string; expiresAt: string; command: string; localCommand: string };
 
-const UPGRADING = ["validating", "downloading", "restarting", "checking", "rolling_back"];
 const when = (value: string | null | undefined) => (value ? new Date(value).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "—");
 const daysLeft = (value: string | null | undefined) => (value ? Math.ceil((new Date(value).getTime() - Date.now()) / 86_400_000) : null);
 
@@ -32,7 +30,7 @@ function overallStatus(data: Snapshot): { label: string; tone: "success" | "warn
   }
   if (activation.licenseState === "suspended") return { label: "Ditangguhkan", tone: "danger", text: "Lisensi ditangguhkan pengelola. Aplikasi kembali ke fitur Community; data tetap aman. Hubungi billing atau masukkan license key lain." };
   if (activation.licenseState === "released") return { label: "Dilepas", tone: "danger", text: "Lisensi dilepas dari instalasi ini (misalnya dari dashboard pelanggan). Aplikasi kembali ke Community. Masukkan license key untuk mengaktifkan lagi." };
-  if (data.edition === "community") return { label: "Lisensi tersimpan", tone: "warning", text: "License key valid, tetapi aplikasi masih edisi Community. Aktifkan fitur Pro di bawah." };
+  if (data.edition === "community") return { label: "Lisensi tersimpan", tone: "warning", text: "License key valid, tetapi aplikasi ini dibangun dari source Community tanpa modul Pro. Pakai image resmi agar fitur Pro langsung aktif." };
   if (data.status === "grace") return { label: "Masa tenggang", tone: "warning", text: `Server lisensi belum dapat dihubungi. Fitur Pro tetap aktif sampai ${when(data.graceUntil)}.` };
   if (data.status === "expired" || activation.licenseState === "expired") return { label: "Kedaluwarsa", tone: "danger", text: "Masa berlaku lisensi berakhir. Aplikasi otomatis kembali ke fitur Community tanpa kehilangan data. Perpanjang lisensi yang sama (aktif lagi otomatis dalam beberapa menit) atau masukkan license key baru." };
   return { label: "Pro aktif", tone: "success", text: "Seluruh fitur Pro dalam lisensi aktif." };
@@ -44,56 +42,36 @@ export default function LicensePage() {
   const { data: session } = useSession();
   const superadmin = session?.user?.role === "SUPERADMIN";
   const [data, setData] = useState<Snapshot | null>(null), [error, setError] = useState(""), [retry, setRetry] = useState(0);
-  const [licenseKey, setLicenseKey] = useState(""), [busy, setBusy] = useState(""), [upgrade, setUpgrade] = useState<UpgradeCode | null>(null);
+  const [licenseKey, setLicenseKey] = useState(""), [busy, setBusy] = useState("");
   const [replacing, setReplacing] = useState(false), [confirmRelease, setConfirmRelease] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
-  const upgrading = !!data?.upgrade && UPGRADING.includes(data.upgrade.stage);
 
   useEffect(() => { let active = true; api.get<Snapshot>("/api/v1/license", { cache: "no-store" }).then((res) => { if (active) { setData(res.data ?? null); setError(""); } }).catch((err) => { if (active) setError(errorMessage(err)); }); return () => { active = false; }; }, [retry]);
-  useEffect(() => { if (!upgrade) return; const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, [upgrade]);
-  useEffect(() => {
-    if (!upgrading) return;
-    let active = true, inFlight = false;
-    const timer = setInterval(async () => {
-      if (inFlight) return; inFlight = true;
-      try { const response = await api.get<Snapshot>("/api/v1/license", { cache: "no-store" }); if (active && response.data) { setData(response.data); setError(""); if (response.data.edition === "pro" && ["active", "grace"].includes(response.data.status)) router.refresh(); } }
-      catch { /* A brief restart is expected while the image switches. Keep the progress view. */ }
-      finally { inFlight = false; }
-    }, 3000);
-    return () => { active = false; clearInterval(timer); };
-  }, [upgrading, router]);
-
   const act = async (body: Record<string, unknown>, label: string) => {
     setBusy(label);
     try {
-      const res = await api.post<UpgradeCode & { activation?: Activation; upgrade?: Snapshot["upgrade"] }>("/api/v1/license", body);
+      const res = await api.post<{ activation?: Activation }>("/api/v1/license", body);
       toast.success("Lisensi", res.message ?? "Berhasil");
       invalidateLicense();
-      if (body.action === "upgrade-code" && res.data) setUpgrade(res.data);
       if (body.action === "activate") { setLicenseKey(""); setReplacing(false); }
-      if (res.data?.upgrade) setData((current) => (current ? { ...current, upgrade: res.data!.upgrade, activation: res.data!.activation || current.activation } : current));
-      if (["activate", "refresh", "deactivate"].includes(String(body.action))) router.refresh();
-      if (!res.data?.upgrade || !UPGRADING.includes(res.data.upgrade.stage)) setRetry((n) => n + 1);
+      // Pro pages and menus read the license on load: refresh so they unlock (or lock) right away.
+      router.refresh();
+      setRetry((n) => n + 1);
     } catch (err) { toast.error("Gagal", errorMessage(err)); setRetry((n) => n + 1); }
     finally { setBusy(""); }
   };
-  const copy = async (text: string) => { try { await navigator.clipboard.writeText(text); toast.success("Disalin", "Tempel di terminal server HRIS."); } catch { toast.error("Tidak dapat menyalin", "Salin manual."); } };
 
   const activation = data?.activation;
   const status = data ? overallStatus(data) : null;
-  const needsUpgrade = data?.edition === "community" && activation?.activated && activation.licenseState !== "suspended" && activation.licenseState !== "released";
-  const secondsLeft = upgrade ? Math.max(0, Math.round((new Date(upgrade.expiresAt).getTime() - now) / 1000)) : 0;
   const lapsed = !!activation?.activated && (activation.licenseState !== "active" || data?.status === "expired");
   const showKeyForm = superadmin && (!activation?.activated || lapsed || replacing);
   const subscriptionDays = activation?.activated ? daysLeft(activation.subscriptionExpiresAt) : null;
 
   return (
     <div>
-      <PageHeader title="Lisensi & Paket" description="Aktifkan, perpanjang, atau ganti lisensi HRIS Pro. Saat lisensi berakhir, aplikasi otomatis kembali ke Community tanpa kehilangan data." />
+      <PageHeader title="Lisensi & Paket" description="Masukkan license key dan fitur Pro langsung aktif, tanpa instal ulang. Saat lisensi berakhir, aplikasi otomatis kembali ke Community tanpa kehilangan data; perpanjang dan Pro aktif lagi." />
       {error ? <ErrorState message={error} onRetry={() => setRetry((n) => n + 1)} /> : !data || !status ? <Skeleton className="h-40" /> : (
         <div className="space-y-6">
-          {upgrading && <Alert title="Sedang menyiapkan HRIS Pro"><span role="status" aria-live="polite">{({ validating: "Memeriksa lisensi…", downloading: "Mengunduh fitur Pro. HRIS tetap dapat digunakan selama proses ini.", restarting: "Mengaktifkan fitur Pro. Aplikasi akan tersambung kembali sebentar lagi.", checking: "Memastikan fitur Pro siap digunakan…", rolling_back: "Upgrade belum berhasil. Memulihkan aplikasi sebelumnya…" } as Record<string, string>)[data.upgrade!.stage]} Data Anda tetap tersimpan.</span></Alert>}
-          {data.upgrade?.stage === "failed" && <Alert tone="warning" title="Upgrade belum selesai">{data.upgrade.code === "ROLLBACK_FAILED" ? "Aplikasi belum berhasil dipulihkan. Hubungi administrator server untuk memeriksa log instalasi." : "Fitur Pro belum berhasil diaktifkan. Periksa koneksi server lalu coba lagi. Data dan kunci instalasi tetap disimpan."}</Alert>}
+          {data.edition === "community" && <Alert tone="warning" title="Image Community dari source">Aplikasi ini dibangun dari source Community sehingga tidak berisi modul Pro. Ganti <code className="font-mono">HRIS_IMAGE</code> ke <code className="font-mono">ghcr.io/lifistudio/hris:latest</code> lalu deploy ulang; license key yang sama langsung membuka fitur Pro.</Alert>}
 
           <Card>
             <CardHeader icon={ShieldCheck} title="Status lisensi" actions={<Badge tone={status.tone} dot>{status.label}</Badge>} />
@@ -112,7 +90,6 @@ export default function LicensePage() {
                   {activation?.activated && <Button variant="secondary" icon={RefreshCw} loading={busy === "refresh"} disabled={!!busy} onClick={() => void act({ action: "refresh" }, "refresh")}>Periksa ulang status</Button>}
                   {activation?.activated && !replacing && !lapsed && <Button variant="secondary" icon={KeyRound} disabled={!!busy} onClick={() => setReplacing(true)}>Ganti license key</Button>}
                   {activation?.activated && <Button variant="ghost" icon={Unplug} disabled={!!busy} onClick={() => setConfirmRelease(true)}>Lepas lisensi</Button>}
-                  {data.edition === "pro" && data.upgrade?.available && <Button variant="secondary" icon={ArrowUpCircle} loading={upgrading || busy === "upgrade-auto"} disabled={upgrading || !!busy} onClick={() => void act({ action: "upgrade" }, "upgrade-auto")}>Perbarui aplikasi Pro</Button>}
                 </div>
               )}
             </CardBody>
@@ -139,30 +116,6 @@ export default function LicensePage() {
             </Card>
           )}
 
-          {superadmin && needsUpgrade && data.upgrade?.available && (
-            <Card><CardHeader icon={ArrowUpCircle} title="Aktifkan fitur Pro" description="Lisensi Anda sudah tersimpan. Fitur Pro diunduh dan diaktifkan otomatis tanpa memindahkan data." /><CardBody><Button loading={upgrading || busy === "upgrade-auto"} disabled={upgrading || !!busy} onClick={() => void act({ action: "upgrade" }, "upgrade-auto")}>{data.upgrade.stage === "failed" ? "Coba lagi" : "Aktifkan Pro"}</Button></CardBody></Card>
-          )}
-          {superadmin && needsUpgrade && !data.upgrade?.available && (
-            <Card>
-              <CardHeader icon={ArrowUpCircle} tone="accent" title="Perbarui installer sekali" description="Instalasi lama ini belum memiliki pengelola upgrade otomatis. Jalankan installer terbaru di folder instalasi yang sama; setelah itu upgrade dapat dilakukan dari halaman ini." />
-              <CardBody className="space-y-4">
-                {!upgrade || secondsLeft === 0 ? (
-                  <Button icon={Terminal} loading={busy === "upgrade"} onClick={() => void act({ action: "upgrade-code" }, "upgrade")}>{upgrade ? "Buat perintah baru" : "Buat perintah upgrade"}</Button>
-                ) : (
-                  <>
-                    <p className="text-body-sm text-muted">Jalankan di folder instalasi (tempat file <code className="font-mono">.env</code> dan <code className="font-mono">compose.image.yml</code> berada). Kode sekali pakai, berlaku {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} lagi.</p>
-                    <div className="flex items-stretch gap-2">
-                      <code className="flex-1 min-w-0 break-all rounded-[var(--radius-control)] border border-line bg-surface-2 p-3 font-mono text-label">{upgrade.command}</code>
-                      <Button variant="secondary" icon={Copy} onClick={() => void copy(upgrade.command)}>Salin</Button>
-                    </div>
-                    <p className="text-caption text-muted">Sudah punya file install.sh? Alternatif: <code className="font-mono break-all">{upgrade.localCommand}</code></p>
-                    <Alert>Perintah ini mengunduh HRIS Pro khusus untuk instalasi ini lalu me-restart aplikasi sebentar. Setelah selesai, muat ulang halaman ini: edisi aplikasi berubah menjadi Pro.</Alert>
-                  </>
-                )}
-              </CardBody>
-            </Card>
-          )}
-
           <Card>
             <CardHeader title="Fitur Pro" description="Fitur yang terbuka sesuai lisensi Anda. Fitur Community tetap berjalan apa pun status lisensinya." />
             <ul className="divide-y divide-[var(--border)]">
@@ -177,6 +130,8 @@ export default function LicensePage() {
               })}
             </ul>
           </Card>
+
+          {superadmin && <AppUpdatePanel />}
         </div>
       )}
       <ConfirmDialog
