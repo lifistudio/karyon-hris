@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useSyncExternalStore } from "react";
+import { runThemeTransition } from "@/lib/theme-transition";
 
 export type Theme = "light" | "dark";
 
@@ -73,12 +74,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       /* storage may be unavailable (private mode) — the in-memory theme still applies */
     }
     const update = () => { applyTheme(next); listeners.forEach((listener) => listener()); };
-    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && document.startViewTransition) {
-      // A rapid second toggle or a navigation aborts the transition; the theme is still applied.
-      const transition = document.startViewTransition(update);
-      transition.ready.catch(() => undefined);
-      transition.finished.catch(() => undefined);
-    } else { update(); }
+    runThemeTransition(update);
   }, []);
 
   const toggleTheme = useCallback(() => {

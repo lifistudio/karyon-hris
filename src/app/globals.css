@@ -36,7 +36,11 @@
              success/soft 8.0   warning/soft 8.8   danger/soft 7.0   info/soft 7.7
    ========================================================================== */
 
-::view-transition-old(root), ::view-transition-new(root) { animation-duration: 280ms; animation-timing-function: ease-in-out; }
+/* Theme switch: no crossfade; lib/theme-transition.ts reveals the new theme with a circle from the top centre. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-old(root) { z-index: 1; }
+::view-transition-new(root) { z-index: 2; }
+.theme-transitioning, .theme-transitioning * { transition: none !important; }
 @media (prefers-reduced-motion: reduce) { ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; } }
 :root {
   color-scheme: light;
