@@ -3,25 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  ArrowRight,
-  BadgeCheck,
-  CalendarClock,
-  CircleX,
-  ExternalLink,
-  FileText,
-  History,
-  Link2,
-  Mail,
-  MessageSquareText,
-  Phone,
-  RotateCcw,
-  Star,
-  Tag,
-  UserPlus,
-  UserRoundCheck,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, CalendarClock, CircleX, ExternalLink, FileText, History, Link2, Mail, MessageSquareText, Phone, RotateCcw, Star, Tag, UserPlus, UserRoundCheck, type IconComponent } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -45,7 +27,7 @@ import { MoveStageDialog, type StageMove } from "@/components/recruitment/MoveSt
 import { api, errorMessage } from "@/lib/client-api";
 import { displayAnswer, EDUCATION_OPTIONS, type FieldType } from "@/lib/hr/application-form";
 import { formatBytes, linkHost } from "@/lib/attachments";
-import { formatDate, formatDateTime, formatRelative, wibDateKey } from "@/lib/time";
+import { formatDate, formatDateTime, formatRelative, wibDateKey, isoOffset, getTimezoneOffset, timezoneAbbr } from "@/lib/time";
 
 interface PresentedAttachment {
   kind: "file" | "link";
@@ -120,7 +102,7 @@ const SOURCE_LABEL: Record<string, string> = {
   manual: "input manual",
 };
 
-const TIMELINE_ICON: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
+const TIMELINE_ICON: Record<string, IconComponent> = {
   applied: FileText,
   stage: ArrowRight,
   note: MessageSquareText,
@@ -314,7 +296,7 @@ export default function ApplicantDetailPage() {
       )}
       {!hired && !rejected && c.nextInterviewAt && new Date(c.nextInterviewAt) > new Date() && (
         <Alert tone="info" title="Wawancara terjadwal" className="mb-6">
-          {formatDateTime(c.nextInterviewAt)} WIB
+          {formatDateTime(c.nextInterviewAt)}
         </Alert>
       )}
 
@@ -496,7 +478,7 @@ function ContactLink({
   value,
   external,
 }: {
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: IconComponent;
   href: string;
   value: string;
   external?: boolean;
@@ -599,7 +581,7 @@ function AnswerItem({ answer: a }: { answer: Answer }) {
   } else {
     const options = a.system === "lastEducation" ? EDUCATION_OPTIONS : a.system === "gender" ? [{ value: "male", label: "Laki-laki" }, { value: "female", label: "Perempuan" }] : [];
     let text = displayAnswer(a, options);
-    if (a.type === "date" && typeof a.value === "string" && a.value) text = formatDate(`${a.value}T00:00:00+07:00`);
+    if (a.type === "date" && typeof a.value === "string" && a.value) text = formatDate(`${a.value}T00:00:00${isoOffset()}`);
     content = text ? (
       a.type === "url" ? (
         <a href={text} target="_blank" rel="noreferrer" className="text-primary hover:underline break-all">
@@ -809,7 +791,7 @@ function InterviewModal({
       .catch(() => {});
   }, [open, people.length]);
 
-  const [today] = useState(() => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10));
+  const [today] = useState(() => new Date(Date.now() + getTimezoneOffset() * 60_000).toISOString().slice(0, 10));
   const valid = /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(time);
 
   return (
@@ -831,7 +813,7 @@ function InterviewModal({
             onClick={async () => {
               setSaving(true);
               await onSubmit({
-                scheduledAt: `${date}T${time}:00+07:00`,
+                scheduledAt: `${date}T${time}:00${isoOffset()}`,
                 location: location.trim(),
                 interviewerUserId: interviewer || undefined,
                 notes: notes.trim(),
@@ -849,7 +831,7 @@ function InterviewModal({
           <Field label="Tanggal" required htmlFor="iv-date">
             <DatePicker id="iv-date" value={date} onChange={setDate} min={today} />
           </Field>
-          <Field label="Jam (WIB)" required htmlFor="iv-time">
+          <Field label={`Jam (${timezoneAbbr()})`} required htmlFor="iv-time">
             <Input id="iv-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           </Field>
         </div>

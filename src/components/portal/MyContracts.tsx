@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, FileSignature, Printer } from "lucide-react";
+import { ExternalLink, FileSignature, Printer } from "@/components/icons";
 import { Badge, Card, EmptyState, ErrorState, ICON_STROKE, SkeletonList } from "@/components/ui";
 import { api, errorMessage } from "@/lib/client-api";
 import { CONTRACT_STATUS_LABELS, contractTypeLabel, type ContractStatus } from "@/lib/hr/contracts";

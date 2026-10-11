@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Crosshair, MapPin, RefreshCw, TriangleAlert } from "lucide-react";
+import { Crosshair, MapPin, RefreshCw, TriangleAlert } from "@/components/icons";
 import { Alert, Button, cn } from "@/components/ui";
 
 export interface GeoState {

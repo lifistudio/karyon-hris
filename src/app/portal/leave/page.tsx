@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pagination } from "@/components/ui/Pagination";
-import { CalendarDays, CalendarPlus, History, Info, Paperclip, Trash2 } from "lucide-react";
+import { CalendarDays, CalendarPlus, History, Info, Paperclip, Trash2 } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -154,7 +154,7 @@ export default function LeavePage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-display-sm md:text-display text-heading">Izin &amp; Cuti</h1>
+          <h1 className="text-display-sm md:text-display text-heading">Izin &amp; cuti</h1>
           <p className="text-body text-muted mt-2 leading-relaxed">
             Saldo tahun {year}. Akhir pekan dan hari libur nasional tidak dihitung.
           </p>
@@ -170,8 +170,8 @@ export default function LeavePage() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { id: "balance", label: "Saldo & Aturan", icon: CalendarDays },
-          { id: "history", label: "Riwayat Pengajuan", count: pendingCount, icon: History },
+          { id: "balance", label: "Saldo & aturan", icon: CalendarDays },
+          { id: "history", label: "Riwayat pengajuan", count: pendingCount, icon: History },
         ]}
       />
 

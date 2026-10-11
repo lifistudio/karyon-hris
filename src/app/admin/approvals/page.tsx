@@ -2,18 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/ui/Pagination";
-import {
-  CalendarDays,
-  Check,
-  ClipboardCheck,
-  FileClock,
-  History,
-  Inbox,
-  Paperclip,
-  Repeat,
-  ScanFace,
-  X,
-} from "lucide-react";
+import { CalendarDays, Check, ClipboardCheck, FileClock, History, Inbox, Paperclip, Repeat, ScanFace, X } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -147,7 +136,7 @@ export default function ApprovalsPage() {
         value={view}
         onChange={setView}
         tabs={[
-          { id: "inbox", label: "Menunggu Keputusan", count: actionable, icon: Inbox },
+          { id: "inbox", label: "Menunggu keputusan", count: actionable, icon: Inbox },
           { id: "history", label: "Riwayat", icon: History },
         ]}
       />

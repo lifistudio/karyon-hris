@@ -4,7 +4,7 @@ import database from "@/lib/postgres";
 import { encryptOnce } from "@/lib/crypto";
 import { getSettings } from "@/lib/settings";
 import { initialPasswordFor } from "@/lib/auth/initial-password";
-import { wibStartOfDay } from "@/lib/time";
+import { wibStartOfDay, getTimezoneOffset } from "@/lib/time";
 import Branch from "@/models/Branch";
 import Counter from "@/models/Counter";
 import Division from "@/models/Division";
@@ -263,7 +263,7 @@ export async function planImport(dataset: ImportDataset, csv: string): Promise<I
           if (payload.officeEmail && hasAccount) await User.updateOne({ employeeId: current._id }, { email: payload.officeEmail });
           result.updated++;
         } else {
-          const joinYear = payload.joinDate instanceof Date ? new Date(payload.joinDate.getTime() + 7 * 3600_000).getUTCFullYear() : new Date().getUTCFullYear();
+          const joinYear = payload.joinDate instanceof Date ? new Date(payload.joinDate.getTime() + getTimezoneOffset() * 60_000).getUTCFullYear() : new Date().getUTCFullYear();
           const nipValue = await nextEmployeeId(joinYear);
           payload.employeeId = nipValue;
           const created = await Employee.create({ status: "active", ...payload, employeeId: nipValue });

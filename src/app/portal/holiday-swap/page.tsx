@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/ui/Pagination";
-import { CalendarCheck2, Info, PartyPopper, Repeat, Trash2 } from "lucide-react";
+import { CalendarCheck2, Info, PartyPopper, Repeat, Trash2 } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -119,7 +119,7 @@ export default function HolidaySwapPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-display-sm md:text-display text-heading">Tukar Libur</h1>
+          <h1 className="text-display-sm md:text-display text-heading">Tukar libur</h1>
           <p className="text-body text-muted mt-2 leading-relaxed">
             Bersedia masuk di tanggal merah? Tukar dengan hari libur pengganti.
           </p>

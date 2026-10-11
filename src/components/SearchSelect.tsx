@@ -32,8 +32,8 @@ export default function SearchSelect({
 }: SearchSelectProps) {
   const id = useId();
   return (
-    <div className="w-full space-y-1.5">
-      <label htmlFor={id} className="block text-label font-medium text-foreground">
+    <div className="w-full space-y-2">
+      <label htmlFor={id} className="block text-body-sm font-medium text-foreground">
         {label}
         {required && <span className="text-danger"> *</span>}
       </label>

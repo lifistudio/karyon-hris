@@ -19,15 +19,7 @@ import { storageProvider, decodeDataUrl } from "@/lib/storage";
 import { optimizeImage } from "@/lib/storage/image";
 import { logActivity } from "@/lib/audit/logger";
 import { getSettings } from "@/lib/settings";
-import {
-  wibDateKey,
-  wibStartOfDay,
-  wibEndOfDay,
-  wibStartOfMonth,
-  wibEndOfMonth,
-  wibTimeOnDay,
-  wibPeriodKey,
-} from "@/lib/time";
+import { wibDateKey, wibStartOfDay, wibEndOfDay, wibStartOfMonth, wibEndOfMonth, wibTimeOnDay, wibPeriodKey, timezoneName } from "@/lib/time";
 import { resolveSchedule, holidayMap } from "@/lib/hr/calendar";
 import Attendance from "@/models/Attendance";
 import Employee from "@/models/Employee";
@@ -462,7 +454,7 @@ export const POST = wrapRouteHandler(async (req) => {
 
 function fmt(d: Date) {
   return new Intl.DateTimeFormat("id-ID", {
-    timeZone: "Asia/Jakarta",
+    timeZone: timezoneName(),
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,

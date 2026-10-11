@@ -18,6 +18,7 @@ import Employee from "@/models/Employee";
 import User from "@/models/User";
 import Counter from "@/models/Counter";
 import { initialPasswordFor } from "@/lib/auth/initial-password";
+import { isoOffset } from "@/lib/time";
 
 const objectId = z.string().regex(/^[0-9a-fA-F]{24}$/, "ID tidak valid");
 
@@ -76,13 +77,13 @@ export const GET = wrapRouteHandler(async (req) => {
   const to = sp.get("to");
   if (from || to) {
     filter.createdAt = {
-      ...(from ? { $gte: new Date(`${from}T00:00:00+07:00`) } : {}),
-      ...(to ? { $lte: new Date(`${to}T23:59:59.999+07:00`) } : {}),
+      ...(from ? { $gte: new Date(`${from}T00:00:00${isoOffset()}`) } : {}),
+      ...(to ? { $lte: new Date(`${to}T23:59:59.999${isoOffset()}`) } : {}),
     };
   }
 
   const availableBy = sp.get("availableBy");
-  if (availableBy) filter.availableFrom = { $lte: new Date(`${availableBy}T23:59:59.999+07:00`) };
+  if (availableBy) filter.availableFrom = { $lte: new Date(`${availableBy}T23:59:59.999${isoOffset()}`) };
 
   if (sp.get("interview") === "upcoming") filter.nextInterviewAt = { $gte: new Date() };
 
@@ -416,7 +417,7 @@ export const PUT = wrapRouteHandler(async (req) => {
     personalEmail: candidate.email,
     officeEmail: body.officeEmail,
     phone: candidate.phone,
-    ...(typeof birthDate === "string" && birthDate ? { birthDate: new Date(`${birthDate}T00:00:00+07:00`) } : {}),
+    ...(typeof birthDate === "string" && birthDate ? { birthDate: new Date(`${birthDate}T00:00:00${isoOffset()}`) } : {}),
     ...(gender === "male" || gender === "female" ? { gender } : {}),
     ktpAddress: {
       street: address?.street ?? "",
@@ -428,7 +429,7 @@ export const PUT = wrapRouteHandler(async (req) => {
     branchId: body.branchId,
     divisionId: body.divisionId,
     positionId: body.positionId,
-    joinDate: new Date(`${body.joinDate}T00:00:00+07:00`),
+    joinDate: new Date(`${body.joinDate}T00:00:00${isoOffset()}`),
     employmentStatus: body.employmentStatus,
     status: "onboarding",
     documents,

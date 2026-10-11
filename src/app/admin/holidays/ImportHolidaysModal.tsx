@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { CloudDownload, Info, TriangleAlert } from "lucide-react";
+import { CloudDownload, Info, TriangleAlert } from "@/components/icons";
 import {
   Alert,
   Badge,

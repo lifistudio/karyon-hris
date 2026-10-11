@@ -3,15 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/ui/Pagination";
 import Link from "next/link";
-import {
-  Eye,
-  ExternalLink,
-  Plus,
-  Search,
-  Trash2,
-  UserRoundSearch,
-  Users,
-} from "lucide-react";
+import { Eye, ExternalLink, Plus, Search, Trash2, UserRoundSearch, Users } from "@/components/icons";
 import {
   Badge,
   Button,
@@ -153,7 +145,7 @@ export default function VacanciesPage() {
   return (
     <div>
       <PageHeader
-        title="Lowongan Kerja"
+        title="Lowongan kerja"
         description="Buat, tayangkan, dan pantau lowongan beserta pelamarnya."
         actions={
           <>

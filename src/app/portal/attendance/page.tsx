@@ -1,19 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  CalendarClock,
-  CheckCircle2,
-  Clock,
-  Coffee,
-  FileClock,
-  History,
-  LogIn,
-  LogOut,
-  Plus,
-  Utensils,
-  ScanFace,
-} from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock, Coffee, FileClock, History, LogIn, LogOut, Plus, Utensils, ScanFace } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -49,7 +37,7 @@ import {
   type AttachmentItem,
 } from "@/components/ui/FileOrLinkInput";
 import { api, errorMessage } from "@/lib/client-api";
-import { formatDate, formatDateLong, formatTime, wibDateKey } from "@/lib/time";
+import { formatDate, formatDateLong, formatTime, wibDateKey, timezoneAbbr } from "@/lib/time";
 import { CORRECTION_REASON_LABELS } from "@/lib/hr/labels";
 
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -99,10 +87,10 @@ interface Correction {
 }
 
 const STEP_META: Record<Action, { label: string; help: string; icon: React.ComponentType<{ className?: string }> }> = {
-  clock_in: { label: "Absen Masuk", help: "Mulai hari kerja Anda", icon: LogIn },
-  break_out: { label: "Mulai Istirahat", help: "Catat waktu keluar istirahat", icon: Coffee },
-  break_in: { label: "Selesai Istirahat", help: "Catat waktu kembali bekerja", icon: Utensils },
-  clock_out: { label: "Absen Pulang", help: "Akhiri hari kerja Anda", icon: LogOut },
+  clock_in: { label: "Absen masuk", help: "Mulai hari kerja Anda", icon: LogIn },
+  break_out: { label: "Mulai istirahat", help: "Catat waktu keluar istirahat", icon: Coffee },
+  break_in: { label: "Selesai istirahat", help: "Catat waktu kembali bekerja", icon: Utensils },
+  clock_out: { label: "Absen pulang", help: "Akhiri hari kerja Anda", icon: LogOut },
 };
 
 export default function AttendancePage() {
@@ -235,7 +223,7 @@ export default function AttendancePage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-display-sm md:text-display text-heading">Presensi Mandiri</h1>
+        <h1 className="text-display-sm md:text-display text-heading">Presensi mandiri</h1>
         <p className="text-body text-muted mt-2 leading-relaxed">{formatDateLong(todayKey)}</p>
       </header>
 
@@ -246,9 +234,9 @@ export default function AttendancePage() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { id: "today", label: "Hari Ini", icon: Clock },
-          { id: "history", label: "Riwayat Bulan Ini", count: logs.length, icon: History },
-          { id: "corrections", label: "Koreksi Absen", count: corrections.length, icon: FileClock },
+          { id: "today", label: "Hari ini", icon: Clock },
+          { id: "history", label: "Riwayat bulan ini", count: logs.length, icon: History },
+          { id: "corrections", label: "Koreksi absen", count: corrections.length, icon: FileClock },
         ]}
       />
 
@@ -561,7 +549,7 @@ export default function AttendancePage() {
         message={
           overrideMode
             ? "Presensi akan dicatat di luar radius kantor dan ditandai untuk ditinjau HRD. Pastikan alasan yang Anda tulis benar."
-            : "Waktu presensi diambil dari jam server (WIB) dan tidak dapat diubah sendiri setelah tercatat."
+            : `Waktu presensi diambil dari jam server (${timezoneAbbr()}) dan tidak dapat diubah sendiri setelah tercatat.`
         }
       />
     </div>

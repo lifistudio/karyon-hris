@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check, ChevronsUpDown, Search, X } from "lucide-react";
+import { Check, ChevronsUpDown, Search, X } from "@/components/icons";
 import { cn, ICON_STROKE, type IconType } from "./core";
 import { FloatingPanel, useFloatingPlacement } from "./Floating";
 
@@ -203,7 +203,7 @@ export function Combobox({
     }
   };
 
-  const height = size === "sm" ? "h-9 text-body-sm" : "h-11 text-body";
+  const height = size === "sm" ? "h-9 text-body-sm" : "h-10 text-body";
 
   return (
     <div className={cn("relative", className)}>
@@ -220,11 +220,11 @@ export function Combobox({
         onClick={() => (open ? close() : openPanel())}
         onKeyDown={onTriggerKeyDown}
         className={cn(
-          "w-full rounded-[var(--radius-control)] bg-surface border border-line px-3",
+          "w-full rounded-[var(--radius-control)] bg-[var(--field-bg)] border border-transparent px-3",
           "flex items-center gap-2 text-left transition-colors",
-          "hover:border-line-strong focus:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20",
+          "hover:bg-[var(--field-bg-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
           "disabled:opacity-55 disabled:cursor-not-allowed",
-          open && "border-primary ring-2 ring-primary/20",
+          open && "bg-surface border-line ring-2 ring-[var(--ring)]",
           height
         )}
       >

@@ -1,6 +1,7 @@
 {
   "name": "@hris/community",
   "version": "0.1.0",
+  "license": "AGPL-3.0-only",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,8 +16,9 @@
     "test:api-docs": "tsx --tsconfig tsconfig.json --test src/lib/openapi.test.ts",
     "test:docs": "tsx --tsconfig tsconfig.json --test src/lib/docs/content.test.ts",
     "test:birthdays": "tsx --tsconfig tsconfig.json --test src/lib/hr/birthdays.test.ts",
+    "test:time": "tsx --tsconfig tsconfig.json --test src/lib/time.test.ts",
     "test:barcode": "tsx --tsconfig tsconfig.json --test src/lib/barcode.test.ts",
-    "test:security": "tsx --tsconfig tsconfig.json --test src/lib/api.security.test.ts src/lib/crypto.security.test.ts src/lib/rbac/scope.security.test.ts src/lib/storage/LocalProvider.security.test.ts src/lib/integrations/api-scopes.security.test.ts src/lib/export/export.security.test.ts",
+    "test:security": "tsx --tsconfig tsconfig.json --test src/lib/api.security.test.ts src/lib/crypto.security.test.ts src/lib/rbac/scope.security.test.ts src/lib/storage/LocalProvider.security.test.ts src/lib/integrations/api-scopes.security.test.ts src/lib/export/export.security.test.ts src/lib/licensing/offer-parse.test.ts",
     "db:plan": "tsx --tsconfig tsconfig.json scripts/postgres.ts --app=hris --action=plan",
     "db:setup": "tsx --tsconfig tsconfig.json --env-file=.env scripts/postgres.ts --app=hris --action=setup",
     "db:reset": "tsx --tsconfig tsconfig.json --env-file=.env scripts/postgres.ts --app=hris --action=reset",
@@ -26,17 +28,22 @@
     "test:images": "tsx --tsconfig tsconfig.json --test src/lib/storage/image.test.ts"
   },
   "dependencies": {
+    "@internationalized/date": "^3.12.1",
+    "@remixicon/react": "^4.9.0",
     "bcryptjs": "3.0.3",
     "framer-motion": "13.4.1",
     "leaflet": "1.9.4",
-    "lucide-react": "1.47.0",
+    "motion": "^12.42.2",
     "next": "16.3.6",
     "next-auth": "5.0.0-beta.32",
     "nodemailer": "10.0.10",
     "pg": "8.23.0",
     "react": "19.3.0",
+    "react-aria-components": "^1.22.1",
     "react-dom": "19.3.0",
+    "recharts": "^3.9.2",
     "sharp": "0.35.4",
+    "tailwind-merge": "^3.7.0",
     "zod": "4.6.5"
   },
   "devDependencies": {

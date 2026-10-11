@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useRef, useState } from "react";
-import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from "lucide-react";
+import { CircleAlert, CircleCheck, Info, TriangleAlert, X, type IconComponent } from "@/components/icons";
 import { ICON_STROKE } from "./index";
 
 export type ToastTone = "success" | "error" | "warning" | "info";
@@ -31,7 +31,7 @@ const ToastContext = createContext<ToastApi>({
 
 const toneStyles: Record<
   ToastTone,
-  { cls: string; Icon: React.ComponentType<{ className?: string; strokeWidth?: number }> }
+  { cls: string; Icon: IconComponent }
 > = {
   success: { cls: "border-success/25 bg-success-soft text-success", Icon: CircleCheck },
   error: { cls: "border-danger/25 bg-danger-soft text-danger", Icon: CircleAlert },

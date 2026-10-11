@@ -2,20 +2,8 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  BarChart3,
-  CircleCheck,
-  ClipboardList,
-  Layers,
-  Plus,
-  Printer,
-  Target,
-  Undo2,
-  Users,
-  FileText,
-  FileUp,
-  Send,
-} from "lucide-react";
+import { MeterBar } from "@/components/charts";
+import { BarChart3, CircleCheck, ClipboardList, Layers, Plus, Printer, Target, Undo2, Users, FileText, FileUp, Send } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -26,7 +14,6 @@ import {
   ConfirmDialog,
   EmptyState,
   ErrorState,
-  ICON_STROKE,
   Input,
   PageHeader,
   Select,
@@ -38,7 +25,6 @@ import {
   Td,
   Th,
   Tr,
-  cn,
   type BadgeTone,
 } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
@@ -105,7 +91,7 @@ export default function KpiPage() {
   return (
     <div>
       <PageHeader
-        title="KPI & Kinerja"
+        title="KPI & kinerja"
         description="Susun template penilaian, nilai karyawan, dan pantau hasilnya per divisi."
       />
 
@@ -238,12 +224,7 @@ function OverviewTab() {
                         <span className="text-subtle"> · {d.count} orang</span>
                       </span>
                     </div>
-                    <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${(d.average / maxDivision) * 100}%` }}
-                      />
-                    </div>
+                    <MeterBar percent={(d.average / maxDivision) * 100} tone={6} />
                   </li>
                 ))}
               </ul>
@@ -259,7 +240,7 @@ function OverviewTab() {
             ) : (
               <ul className="space-y-3.5">
                 {data.distribution.map((d, i) => {
-                  const tones = ["bg-success", "bg-primary", "bg-warning", "bg-danger"];
+                  const tones = [7, 6, 8, 3] as const;
                   const pct = Math.round((d.count / totalDistribution) * 100);
                   return (
                     <li key={d.label}>
@@ -272,9 +253,7 @@ function OverviewTab() {
                           {d.count} orang ({pct}%)
                         </span>
                       </div>
-                      <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
-                        <div className={cn("h-full rounded-full", tones[i])} style={{ width: `${pct}%` }} />
-                      </div>
+                      <MeterBar percent={pct} tone={tones[i] ?? 6} />
                     </li>
                   );
                 })}

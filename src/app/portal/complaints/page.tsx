@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { EyeOff, MessageSquarePlus, MessageSquareWarning, Paperclip, ShieldCheck } from "lucide-react";
+import { EyeOff, MessageSquarePlus, MessageSquareWarning, Paperclip, ShieldCheck } from "@/components/icons";
 import {
   Alert,
   Badge,

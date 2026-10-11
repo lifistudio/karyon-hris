@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowUpCircle, DatabaseBackup, History, RefreshCw, Server, Webhook } from "lucide-react";
+import { ArrowUpCircle, DatabaseBackup, History, RefreshCw, Server, Webhook } from "@/components/icons";
 import { Alert, Badge, Button, Card, CardBody, CardHeader, ConfirmDialog, Field, Input, Select } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/client-api";

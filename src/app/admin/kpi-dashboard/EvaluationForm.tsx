@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Save, Send } from "lucide-react";
+import { Save, Send } from "@/components/icons";
 import {
   Alert,
   Button,

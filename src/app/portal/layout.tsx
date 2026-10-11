@@ -1,18 +1,6 @@
 "use client";
 
-import {
-  BookOpen,
-  Boxes,
-  CalendarRange,
-  Cake,
-  Fingerprint,
-  MessageSquareWarning,
-  ReceiptText,
-  ScrollText,
-  Repeat2,
-  Target,
-  UserRound,
-} from "lucide-react";
+import { BookOpen, Boxes, CalendarRange, Cake, Fingerprint, MessageSquareWarning, ReceiptText, ScrollText, Repeat2, Target, UserRound } from "@/components/icons";
 import { AppShell, type NavSection } from "@/components/shell/AppShell";
 
 /**
@@ -24,18 +12,18 @@ const sections: NavSection[] = [
   {
     label: "Kehadiran",
     items: [
-      { name: "Presensi Mandiri", href: "/portal/attendance", icon: Fingerprint },
-      { name: "Izin & Cuti", href: "/portal/leave", icon: CalendarRange },
-      { name: "Tukar Libur", href: "/portal/holiday-swap", icon: Repeat2 },
+      { name: "Presensi mandiri", href: "/portal/attendance", icon: Fingerprint },
+      { name: "Izin & cuti", href: "/portal/leave", icon: CalendarRange },
+      { name: "Tukar libur", href: "/portal/holiday-swap", icon: Repeat2 },
     ],
   },
   {
     label: "Kepegawaian",
     items: [
-      { name: "Slip Gaji Saya", href: "/portal/payroll", icon: ReceiptText },
-      { name: "Ulang Tahun", href: "/portal/birthdays", icon: Cake },
-      { name: "Penilaian Kinerja", href: "/portal/kpi", icon: Target },
-      { name: "Inventaris Saya", href: "/portal/inventory", icon: Boxes },
+      { name: "Slip gaji saya", href: "/portal/payroll", icon: ReceiptText },
+      { name: "Ulang tahun", href: "/portal/birthdays", icon: Cake },
+      { name: "Penilaian kinerja", href: "/portal/kpi", icon: Target },
+      { name: "Inventaris saya", href: "/portal/inventory", icon: Boxes },
       { name: "Pengaduan", href: "/portal/complaints", icon: MessageSquareWarning },
       { name: "Disiplin & SP", href: "/admin/discipline", icon: ScrollText, permission: "discipline" },
     ],
@@ -43,8 +31,8 @@ const sections: NavSection[] = [
   {
     label: "Akun",
     items: [
-      { name: "Profil & Keamanan", href: "/portal/profile", icon: UserRound },
-      { name: "Panduan Penggunaan", href: "/portal/help", icon: BookOpen },
+      { name: "Profil & keamanan", href: "/portal/profile", icon: UserRound },
+      { name: "Panduan penggunaan", href: "/portal/help", icon: BookOpen },
     ],
   },
 ];

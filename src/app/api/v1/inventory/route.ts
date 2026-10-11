@@ -109,6 +109,9 @@ export const POST = wrapRouteHandler(async (req) => {
 
   const body = await req.json();
   const { id, code, name, category, condition, employeeId, action } = body;
+  if (category !== undefined && (typeof category !== "string" || !category.trim() || category.length > 40)) {
+    return apiError("BAD_REQUEST", "Kategori aset tidak valid");
+  }
 
   await connectToDatabase();
 

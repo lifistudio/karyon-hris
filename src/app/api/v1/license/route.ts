@@ -3,7 +3,7 @@ import { apiSuccess, wrapRouteHandler } from "@/lib/api";
 import { BadRequest, enforceRateLimit, Forbidden, parseBody, requireUser } from "@/lib/guard";
 import { logActivity } from "@/lib/audit/logger";
 import { clearEntitlementCache, EDITION, getEntitlements } from "@/lib/licensing/server";
-import { PRO_FEATURE_LABELS } from "@/lib/licensing/features";
+import { HIDDEN_FEATURE_LABELS, PRO_FEATURE_LABELS, type ProFeature } from "@/lib/licensing/features";
 import { activateLicense, activationSummary, deactivateLicense, LicenseServerError, licenseServer, renewLease } from "@/lib/licensing/activation";
 
 function serverOrigin() {
@@ -20,7 +20,7 @@ export const GET = wrapRouteHandler(async (req) => {
     ...license,
     installationId: superadmin ? license.installationId : null,
     edition: EDITION,
-    featureLabels: PRO_FEATURE_LABELS,
+    featureLabels: Object.fromEntries(Object.entries(PRO_FEATURE_LABELS).filter(([key]) => !HIDDEN_FEATURE_LABELS.has(key as ProFeature))),
     activation: superadmin ? activation : { activated: activation.activated, licenseState: activation.licenseState },
     licenseServer: superadmin ? serverOrigin() : null,
   });
@@ -45,7 +45,9 @@ export const POST = wrapRouteHandler(async (req) => {
   const ctx = await requireUser(req);
   if (ctx.user.role !== "SUPERADMIN") throw Forbidden("Hanya Superadmin yang dapat mengelola lisensi.");
   const body = await parseBody(req, action);
-  enforceRateLimit("license-action", ctx.user.id, { max: 10, windowMs: 10 * 60_000 });
+  // Generous and short: only a superadmin reaches this, and a failed attempt
+  // (wrong key, server unreachable) must not lock them out for ten minutes.
+  enforceRateLimit("license-action", ctx.user.id, { max: 30, windowMs: 10 * 60_000, blockMs: 60_000 });
   try {
     if (body.action === "activate") {
       const before = await activationSummary();

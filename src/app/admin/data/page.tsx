@@ -2,7 +2,7 @@
 
 import React, { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Download, FileSpreadsheet, FileUp, KeyRound, TriangleAlert, Upload } from "lucide-react";
+import { CheckCircle2, Download, FileSpreadsheet, FileUp, KeyRound, TriangleAlert, Upload } from "@/components/icons";
 import {
   Alert, Badge, Button, Card, CardBody, CardHeader, PageHeader, Select, SkeletonList, Tabs, TableWrap, Td, Th,
 } from "@/components/ui";
@@ -212,7 +212,7 @@ function DataPage() {
   const [tab, setTab] = useState<"export" | "import">(params.get("tab") === "import" ? "import" : "export");
   return (
     <div>
-      <PageHeader eyebrow="Sistem" title="Ekspor & Impor Data" description="Unduh data ke Excel atau CSV untuk laporan dan arsip, atau pindahkan data dari spreadsheet ke HRIS dengan pemeriksaan per baris sebelum disimpan." />
+      <PageHeader eyebrow="Sistem" title="Ekspor & impor data" description="Unduh data ke Excel atau CSV untuk laporan dan arsip, atau pindahkan data dari spreadsheet ke HRIS dengan pemeriksaan per baris sebelum disimpan." />
       <div className="mb-5"><Tabs tabs={[{ id: "export", label: "Ekspor", icon: Download }, { id: "import", label: "Impor", icon: Upload }]} value={tab} onChange={setTab} /></div>
       {tab === "export" ? <ExportPanel /> : <ImportPanel />}
     </div>

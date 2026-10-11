@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check } from "@/components/icons";
 
 export function DocumentationCode({ text }: { text: string }) {
   const [message, setMessage] = useState("");

@@ -3,13 +3,14 @@
 import React, { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Building2, Clock, Edit, MapPin, Plus, Trash2, Users } from "lucide-react";
+import { Building2, Clock, Edit, MapPin, Plus, Trash2, Users, X } from "@/components/icons";
 import { AnimatePresence, motion } from "framer-motion";
 import { Alert, Badge, Button, ConfirmDialog, EmptyState, ErrorState, Field, Input, PageHeader, SkeletonCards, Textarea } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/client-api";
 import { hasFeature, useLicense } from "@/lib/use-license";
 import { Portal } from "@/components/ui/Floating";
+import { timezoneAbbr } from "@/lib/time";
 
 // Leaflet touches `window`, so the map only loads in the browser.
 const BranchMap = dynamic(() => import("@/components/BranchMap"), {
@@ -153,7 +154,7 @@ export default function BranchesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Cabang Kantor"
+        title="Cabang kantor"
         description="Lokasi penempatan, jam operasional, dan area geofence presensi setiap cabang."
         actions={
           <Button icon={Plus} onClick={() => handleOpenForm()} disabled={limitReached} title={limitReached ? "Cabang tambahan memerlukan HRIS Pro" : undefined}>
@@ -238,7 +239,7 @@ export default function BranchesPage() {
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-muted shrink-0" />
                     <span className="text-foreground">
-                      Operasional {branch.workHours.start}–{branch.workHours.end} WIB
+                      Operasional {branch.workHours.start}–{branch.workHours.end} {timezoneAbbr()}
                     </span>
                   </div>
                 </div>
@@ -276,13 +277,16 @@ export default function BranchesPage() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 260 }}
-              className="w-full max-w-lg h-full bg-surface border-l border-line shadow-[var(--shadow-pop)] relative z-10 flex flex-col"
+              className="drawer-panel max-w-lg"
             >
-              <div className="px-6 py-4 border-b border-line">
-                <h2 className="text-body-lg font-semibold text-heading">{selectedBranchId ? "Ubah Cabang" : "Tambah Cabang Baru"}</h2>
-                <p className="text-body-sm text-muted mt-0.5">Klik peta atau geser penanda untuk menentukan titik kantor.</p>
+              <div className="drawer-head">
+                <div className="min-w-0">
+                  <h2 className="text-title-sm font-semibold text-heading">{selectedBranchId ? "Ubah cabang" : "Tambah cabang"}</h2>
+                  <p className="text-body text-muted mt-1">Klik peta atau geser penanda untuk menentukan titik kantor.</p>
+                </div>
+                <button type="button" onClick={() => setFormOpen(false)} aria-label="Tutup" className="icon-close"><X className="w-4 h-4" /></button>
               </div>
-              <form id="branch-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+              <form id="branch-form" onSubmit={handleSubmit} className="drawer-body space-y-4">
                 {formError && <Alert tone="danger">{formError}</Alert>}
                 <Field label="Nama cabang" required>
                   <Input value={name} onChange={(e) => setName(e.target.value)} required minLength={3} maxLength={120} placeholder="Contoh: Kantor Pusat Jakarta" />
@@ -318,12 +322,12 @@ export default function BranchesPage() {
                   }}
                 />
               </form>
-              <div className="border-t border-line px-6 py-4 flex items-center justify-end gap-2">
+              <div className="drawer-foot">
                 <Button variant="secondary" type="button" onClick={() => setFormOpen(false)}>
                   Batal
                 </Button>
                 <Button type="submit" form="branch-form" loading={submitting}>
-                  Simpan Cabang
+                  Simpan cabang
                 </Button>
               </div>
             </motion.aside>

@@ -33,7 +33,6 @@ BIND="127.0.0.1"
 ADMIN_EMAIL=""
 TRUST_PROXY="0"
 UPGRADE_CODE=""
-LIFECYCLE="no"
 ASSUME_YES="no"
 
 say() { printf '%s\n' "$*"; }
@@ -53,7 +52,6 @@ Usage: install.sh [options]
   --admin-email EMAIL       First superadmin email (default admin@hris.local)
   --license-server URL      License website (HTTPS) used for activation and Pro upgrades
   --upgrade-code CODE       Switch an existing installation to HRIS Pro (code from Lisensi & Paket, valid 15 minutes)
-  --lifecycle               Pro, Linux only: optional agent for automatic backup/update/rollback (mounts the Docker socket)
   --yes                     Do not ask questions
 EOF
 }
@@ -71,7 +69,7 @@ while [ $# -gt 0 ]; do
     --admin-email) ADMIN_EMAIL="$2"; shift 2 ;;
     --license-server) LICENSE_SERVER="$2"; shift 2 ;;
     --upgrade-code) UPGRADE_CODE="$2"; shift 2 ;;
-    --lifecycle) LIFECYCLE="yes"; shift ;;
+    --lifecycle) fail "--lifecycle was removed: backup, update and rollback now run from HRIS > Lisensi & Paket > Versi & pembaruan (installer manager)." ;;
     --yes|-y) ASSUME_YES="yes"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage; fail "Unknown option: $1" ;;
@@ -153,7 +151,6 @@ fetch() { # fetch FILE (always refreshed so fixes to the compose files arrive wi
 fetch compose.image.yml
 fetch compose.external.yml
 if [ -n "$MANAGER_IMAGE" ]; then fetch compose.manager.yml; fi
-if [ "$LIFECYCLE" = "yes" ]; then fetch compose.lifecycle.yml; fi
 
 cd "$DIR"
 NEW_INSTALL="no"
@@ -162,8 +159,7 @@ if [ -f .env ]; then
   say "Existing installation found in $DIR: .env and every key are kept."
   # Older layouts used a separate Pro overlay; licensing now lives in the app.
   case "$(get_env COMPOSE_FILE)" in *compose.pro.yml*)
-    if [ -f compose.lifecycle.yml ] && [ -n "$(get_env HRIS_AGENT_IMAGE)" ]; then set_env COMPOSE_FILE "compose.image.yml:compose.lifecycle.yml"
-    else set_env COMPOSE_FILE "compose.image.yml"; fi ;;
+    set_env COMPOSE_FILE "compose.image.yml" ;;
   esac
   if [ -n "$LICENSE_SERVER" ] && [ -z "$(get_env HRIS_LICENSE_SERVER)" ]; then set_env HRIS_LICENSE_SERVER "$LICENSE_SERVER"; fi
   if [ -n "$IMAGE" ]; then set_env HRIS_IMAGE "$IMAGE"; fi
@@ -257,7 +253,7 @@ else
 fi
 
 # Install the small public manager alongside Community. The Pro engine remains private.
-if [ -n "$MANAGER_IMAGE" ] && [ "$LIFECYCLE" != "yes" ]; then
+if [ -n "$MANAGER_IMAGE" ]; then
   valid_image "$MANAGER_IMAGE" || fail "Invalid manager image."
   case "$(get_env COMPOSE_FILE)" in *compose.lifecycle.yml*) fail "Existing lifecycle overlay needs a separate migration before enabling the new manager." ;; esac
   set_env HRIS_MANAGER_IMAGE "$MANAGER_IMAGE"
@@ -311,25 +307,6 @@ if [ -n "$UPGRADE_CODE" ]; then
   [ -z "$AGENT_IMAGE" ] || set_env HRIS_AGENT_IMAGE "$AGENT_IMAGE"
   [ -z "$LICENSE_PUB" ] || set_env LICENSE_PUBLIC_KEY_PEM_B64 "$LICENSE_PUB"
   say "Registry login saved for this installation ($REG_USER)."
-fi
-
-# --- Optional lifecycle agent (Pro) ------------------------------------------
-if [ "$LIFECYCLE" = "yes" ]; then
-  [ "$(get_env HRIS_EDITION)" = "pro" ] || fail "--lifecycle needs HRIS Pro. Upgrade first with --upgrade-code."
-  [ -n "$(get_env HRIS_AGENT_IMAGE)" ] || fail "No agent image is published for this license server."
-  [ -n "$(get_env LICENSE_PUBLIC_KEY_PEM_B64)" ] || fail "LICENSE_PUBLIC_KEY_PEM_B64 is missing; run the upgrade command again."
-  # The agent manages containers through the host socket; Docker Desktop (macOS/Windows) is not supported.
-  [ "$(uname -s)" = "Linux" ] || fail "--lifecycle is only supported on Linux servers. On macOS/Windows use manual backup and update."
-  [ -S /var/run/docker.sock ] || fail "--lifecycle needs /var/run/docker.sock on a Linux host."
-  set_env COMPOSE_FILE "compose.image.yml:compose.lifecycle.yml"
-  set_env DOCKER_GID "$(stat -c %g /var/run/docker.sock 2>/dev/null || stat -f %g /var/run/docker.sock)"
-  [ -n "$(get_env HRIS_AGENT_TOKEN)" ] || set_env HRIS_AGENT_TOKEN "$(rand_hex 32)"
-  [ -n "$(get_env AUTO_BACKUP_INTERVAL_HOURS)" ] || set_env AUTO_BACKUP_INTERVAL_HOURS 24
-  [ -n "$(get_env AUTO_UPDATE_INTERVAL_HOURS)" ] || set_env AUTO_UPDATE_INTERVAL_HOURS 0
-  mkdir -p backups
-  chmod 700 backups
-  # The agent runs as uid 1001; only its backup folder is writable for it.
-  chown 1001:1001 backups 2>/dev/null || say "Run: sudo chown 1001:1001 $DIR/backups  (agent backups need it)"
 fi
 
 # --- Pull and start ------------------------------------------------------------

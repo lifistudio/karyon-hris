@@ -2,10 +2,7 @@
 
 import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import {
-  Users, UserPlus, Trash2, Edit, X, Loader2, AlertCircle, Search, Mail, Phone,
-  Building2, Briefcase, MapPin, CreditCard, ShieldCheck, Sparkles, CheckCheck
-} from "lucide-react";
+import { Users, UserPlus, Trash2, Edit, X, AlertCircle, Search, Mail, Phone, Building2, Briefcase, MapPin, CreditCard, ShieldCheck, Sparkles, CheckCheck } from "@/components/icons";
 import SearchSelect from "@/components/SearchSelect";
 import { CredentialDialog } from "@/components/CredentialDialog";
 import {
@@ -632,7 +629,7 @@ function EmployeesView() {
       ) : (
         <div className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
           {/* Phones: cards instead of a wide table. */}
-          <div className="md:hidden space-y-2.5">
+          <div className="lg:hidden space-y-2.5">
             {employees.map((emp) => (
               <div key={emp._id} className="card p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -659,7 +656,7 @@ function EmployeesView() {
             ))}
           </div>
 
-          <Card className="hidden md:block overflow-hidden">
+          <Card className="hidden lg:block overflow-hidden">
             <TableWrap>
               <thead>
                 <tr>
@@ -780,20 +777,20 @@ function EmployeesView() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="w-full max-w-2xl h-full bg-surface border-l border-line shadow-[var(--shadow-pop)] relative z-10 p-6 flex flex-col justify-between overflow-y-auto"
+              className="drawer-panel max-w-2xl"
             >
-              <div className="space-y-6">
-                <div className="flex items-center justify-between border-b border-line pb-4">
-                  <h2 className="text-body-lg font-semibold text-foreground">
-                    {selectedId ? "Edit Profil Karyawan" : "Registrasi Karyawan Baru"}
+              <div className="drawer-head">
+                <div className="min-w-0">
+                  <h2 className="text-title-sm font-semibold text-heading">
+                    {selectedId ? "Edit profil karyawan" : "Tambah karyawan baru"}
                   </h2>
-                  <button
-                    onClick={handleCloseForm}
-                    className="p-1 rounded bg-surface border border-line text-muted hover:text-foreground cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <p className="mt-1 text-body text-muted">Kolom bertanda wajib harus diisi. Data sensitif disimpan terenkripsi.</p>
                 </div>
+                <button type="button" onClick={handleCloseForm} aria-label="Tutup" className="icon-close">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="drawer-body space-y-6">
 
                 {errorMessage && (
                   <div className="p-3 rounded-lg bg-danger-soft border border-danger/20 text-danger text-label flex items-center gap-2">
@@ -815,76 +812,76 @@ function EmployeesView() {
                   </Alert>
                 )}
 
-                <form id="employee-form" onSubmit={handleSubmit} className="space-y-6 text-label text-foreground">
+                <form id="employee-form" onSubmit={handleSubmit} className="space-y-8 text-body-sm text-foreground">
                   {/* Bagian 1: Data Diri */}
                   <div className="space-y-3">
-                    <h3 className="text-label font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-line">
-                      <Users className="w-4 h-4" /> Data Diri Karyawan
+                    <h3 className="form-section pt-2">
+                      <Users className="w-4 h-4" /> Data diri karyawan
                     </h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-1">
-                        <label className="font-semibold">Nama Lengkap (Sesuai KTP)</label>
-                        <input type="text" required value={name} onChange={e => setName(e.target.value)} placeholder="e.g. John Doe" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">Nama lengkap (sesuai KTP)</label>
+                        <input type="text" required value={name} onChange={e => setName(e.target.value)} placeholder="e.g. John Doe" className="field w-full" />
                       </div>
                       <div className="space-y-1">
-                        <label className="font-semibold">Nomor NIK KTP (Enkripsi)</label>
-                        <input type="text" required value={nik} onChange={e => setNik(e.target.value)} placeholder="16 digit NIK" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">NIK KTP, terenkripsi</label>
+                        <input type="text" required value={nik} onChange={e => setNik(e.target.value)} placeholder="16 digit NIK" className="field w-full" />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-1">
-                        <label className="font-semibold">Tempat Lahir</label>
-                        <input type="text" required value={birthPlace} onChange={e => setBirthPlace(e.target.value)} placeholder="e.g. Jakarta" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">Tempat lahir</label>
+                        <input type="text" required value={birthPlace} onChange={e => setBirthPlace(e.target.value)} placeholder="e.g. Jakarta" className="field w-full" />
                       </div>
                       <div className="space-y-1">
-                        <label className="font-semibold">Tanggal Lahir</label>
+                        <label className="block text-body-sm font-medium text-heading">Tanggal lahir</label>
                         <DatePicker required value={birthDate} onChange={(value) => setBirthDate(value)} />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       <div className="space-y-1">
-                        <label className="font-semibold">Gender</label>
+                        <label className="block text-body-sm font-medium text-heading">Gender</label>
                         <Select value={gender} onChange={e => setGender(e.target.value as "male" | "female")} className="w-full">
                           <option value="male">Laki-Laki</option>
                           <option value="female">Perempuan</option>
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <label className="font-semibold">Agama</label>
-                        <input type="text" required value={religion} onChange={e => setReligion(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">Agama</label>
+                        <input type="text" required value={religion} onChange={e => setReligion(e.target.value)} className="field w-full" />
                       </div>
                       <div className="space-y-1">
-                        <label className="font-semibold">Status Pernikahan</label>
-                        <input type="text" required value={maritalStatus} onChange={e => setMaritalStatus(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">Status pernikahan</label>
+                        <input type="text" required value={maritalStatus} onChange={e => setMaritalStatus(e.target.value)} className="field w-full" />
                       </div>
                     </div>
                   </div>
 
                   {/* Bagian 2: Kontak */}
                   <div className="space-y-3">
-                    <h3 className="text-label font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-line">
-                      <Phone className="w-4 h-4" /> Kontak & Akun
+                    <h3 className="form-section pt-2">
+                      <Phone className="w-4 h-4" /> Kontak & akun
                     </h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-1">
-                        <label className="font-semibold">No. HP / WhatsApp</label>
-                        <input type="text" required value={phone} onChange={e => setPhone(e.target.value)} placeholder="08xxxxxx" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">No. HP / WhatsApp</label>
+                        <input type="text" required value={phone} onChange={e => setPhone(e.target.value)} placeholder="08xxxxxx" className="field w-full" />
                       </div>
                       <div className="space-y-1">
-                        <label className="font-semibold">Email Pribadi</label>
-                        <input type="email" required value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} placeholder="john@gmail.com" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">Email pribadi</label>
+                        <input type="email" required value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} placeholder="john@gmail.com" className="field w-full" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 mt-3">
                       <div className="space-y-1">
-                        <label className="font-semibold">Email Kantor (Email Login)</label>
-                        <input type="email" required value={officeEmail} onChange={e => setOfficeEmail(e.target.value)} placeholder="john@perusahaan.com" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">Email kantor (untuk login)</label>
+                        <input type="email" required value={officeEmail} onChange={e => setOfficeEmail(e.target.value)} placeholder="john@perusahaan.com" className="field w-full" />
                       </div>
                       <div className="space-y-1">
-                        <label className="font-semibold flex items-center justify-between">
-                          <span>{selectedId ? "Kata Sandi Baru" : "Kata Sandi Akun"}</span>
+                        <label className="flex items-center justify-between text-body-sm font-medium text-heading">
+                         <span>{selectedId ? "Kata sandi baru" : "Kata sandi akun"}</span>
                           <span className="text-label text-muted dark:text-subtle font-normal">
                             {selectedId ? "(Kosongkan jika tidak diubah)" : "(Kosongkan untuk default)"}
                           </span>
@@ -894,7 +891,7 @@ function EmployeesView() {
                           value={password}
                           onChange={e => setPassword(e.target.value)}
                           placeholder={selectedId ? "Ubah kata sandi..." : "Tentukan kata sandi login..."}
-                          className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label"
+                          className="field w-full"
                         />
                       </div>
                     </div>
@@ -902,15 +899,15 @@ function EmployeesView() {
 
                   {/* Bagian 3: Alamat */}
                   <div className="space-y-3">
-                    <h3 className="text-label font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-line">
-                      <MapPin className="w-4 h-4" /> Alamat Lengkap
+                    <h3 className="form-section pt-2">
+                      <MapPin className="w-4 h-4" /> Alamat lengkap
                     </h3>
                     <div className="space-y-4">
-                      <div className="p-3 bg-surface-2 rounded-[var(--radius)] border border-line space-y-3">
-                        <span className="font-semibold text-foreground text-label uppercase tracking-wider block border-b border-line pb-1">Alamat Sesuai KTP</span>
+                      <div className="p-3 bg-surface-2 rounded-[var(--radius-card)] border border-line space-y-3">
+                        <span className="block text-body font-semibold text-heading">Alamat sesuai KTP</span>
                         <div className="space-y-1">
-                          <label className="font-semibold block text-caption mb-1 text-foreground">Jalan / RT / RW</label>
-                          <input type="text" required value={ktpStreet} onChange={e => setKtpStreet(e.target.value)} placeholder="Nama Jalan, No. Rumah, RT/RW" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-label" />
+                          <label className="block text-body-sm font-medium text-heading mb-1">Jalan / RT / RW</label>
+                          <input type="text" required value={ktpStreet} onChange={e => setKtpStreet(e.target.value)} placeholder="Nama Jalan, No. Rumah, RT/RW" className="field w-full" />
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           <SearchSelect
@@ -955,11 +952,11 @@ function EmployeesView() {
                         </div>
                       </div>
 
-                      <div className="p-3 bg-surface-2 rounded-[var(--radius)] border border-line space-y-3">
-                        <span className="font-semibold text-foreground text-label uppercase tracking-wider block border-b border-line pb-1">Alamat Domisili Aktif</span>
+                      <div className="p-3 bg-surface-2 rounded-[var(--radius-card)] border border-line space-y-3">
+                        <span className="block text-body font-semibold text-heading">Alamat domisili aktif</span>
                         <div className="space-y-1">
-                          <label className="font-semibold block text-caption mb-1 text-foreground">Jalan / RT / RW</label>
-                          <input type="text" required value={domicileStreet} onChange={e => setDomicileStreet(e.target.value)} placeholder="Nama Jalan, No. Rumah, RT/RW" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-label" />
+                          <label className="block text-body-sm font-medium text-heading mb-1">Jalan / RT / RW</label>
+                          <input type="text" required value={domicileStreet} onChange={e => setDomicileStreet(e.target.value)} placeholder="Nama Jalan, No. Rumah, RT/RW" className="field w-full" />
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           <SearchSelect
@@ -1008,40 +1005,40 @@ function EmployeesView() {
 
                   {/* Bagian 4: Finansial */}
                   <div className="space-y-3">
-                    <h3 className="text-label font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-line">
-                      <CreditCard className="w-4 h-4" /> Akun Keuangan & Rekening Bank
+                    <h3 className="form-section pt-2">
+                      <CreditCard className="w-4 h-4" /> Akun keuangan & rekening bank
                     </h3>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       <div className="space-y-1">
-                        <label className="font-semibold">NPWP (Enkripsi)</label>
-                        <input type="text" required value={npwp} onChange={e => setNpwp(e.target.value)} placeholder="No. NPWP" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">NPWP, terenkripsi</label>
+                        <input type="text" required value={npwp} onChange={e => setNpwp(e.target.value)} placeholder="No. NPWP" className="field w-full" />
                       </div>
                       <div className="space-y-1">
-                        <label className="font-semibold">Status Pajak</label>
-                        <input type="text" required value={taxStatus} onChange={e => setTaxStatus(e.target.value)} placeholder="TK/0, K/0, K/1" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">Status pajak</label>
+                        <input type="text" required value={taxStatus} onChange={e => setTaxStatus(e.target.value)} placeholder="TK/0, K/0, K/1" className="field w-full" />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       <div className="space-y-1">
-                        <label className="font-semibold">Nama Bank</label>
-                        <input type="text" required value={bankName} onChange={e => setBankName(e.target.value)} placeholder="e.g. Bank Mandiri" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">Nama bank</label>
+                        <input type="text" required value={bankName} onChange={e => setBankName(e.target.value)} placeholder="e.g. Bank Mandiri" className="field w-full" />
                       </div>
                       <div className="space-y-1">
-                        <label className="font-semibold">No Rekening (Enkripsi)</label>
-                        <input type="text" required value={bankAccountNumber} onChange={e => setBankAccountNumber(e.target.value)} placeholder="No Rekening" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">No rekening, terenkripsi</label>
+                        <input type="text" required value={bankAccountNumber} onChange={e => setBankAccountNumber(e.target.value)} placeholder="No Rekening" className="field w-full" />
                       </div>
                       <div className="space-y-1">
-                        <label className="font-semibold">Atas Nama</label>
-                        <input type="text" required value={bankAccountHolder} onChange={e => setBankAccountHolder(e.target.value)} placeholder="Sesuai buku tabungan" className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all text-label" />
+                        <label className="block text-body-sm font-medium text-heading">Atas nama</label>
+                        <input type="text" required value={bankAccountHolder} onChange={e => setBankAccountHolder(e.target.value)} placeholder="Sesuai buku tabungan" className="field w-full" />
                       </div>
                     </div>
                   </div>
 
                   {/* Bagian 5: Penempatan */}
                   <div className="space-y-3">
-                    <h3 className="text-label font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-line">
-                      <Briefcase className="w-4 h-4" /> Penempatan Kerja & Jabatan
+                    <h3 className="form-section pt-2">
+                      <Briefcase className="w-4 h-4" /> Penempatan kerja & jabatan
                     </h3>
                     <div className="grid grid-cols-3 gap-4 items-end">
                       <SearchSelect
@@ -1091,13 +1088,13 @@ function EmployeesView() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       <div className="space-y-1">
-                        <label className="font-semibold">Tanggal Mulai Kerja (Join Date)</label>
+                        <label className="block text-body-sm font-medium text-heading">Tanggal mulai kerja</label>
                         <DatePicker required value={joinDate} onChange={(value) => setJoinDate(value)} />
                       </div>
                       <div className="space-y-1">
-                        <label className="font-semibold">Status Kepegawaian</label>
+                        <label className="block text-body-sm font-medium text-heading">Status kepegawaian</label>
                         <Select value={employmentStatus} onChange={e => setEmploymentStatus(e.target.value as "probation" | "pkwt" | "pkwtt" | "magang" | "harian_lepas" | "paruh_waktu" | "outsource" | "lainnya")} className="w-full">
                           <option value="probation">Masa percobaan</option>
                           <option value="pkwt">PKWT (kontrak)</option>
@@ -1110,7 +1107,7 @@ function EmployeesView() {
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <label className="font-semibold">Status Aktivitas Karyawan</label>
+                        <label className="block text-body-sm font-medium text-heading">Status aktivitas karyawan</label>
                         <Select value={status} onChange={e => setStatus(e.target.value as "active" | "onboarding" | "suspended" | "resigned")} className="w-full">
                           <option value="onboarding">Onboarding</option>
                           <option value="active">Active</option>
@@ -1128,9 +1125,9 @@ function EmployeesView() {
 
                     {!selectedId && (
                       <div className="space-y-1">
-                        <h4 className="text-caption font-semibold text-muted uppercase tracking-wider mt-4 flex items-center gap-1.5 pb-1 border-b border-line">
-                          <ShieldCheck className="w-4 h-4" /> Kredensial Login
-                        </h4>
+                        <h4 className="form-section mt-4 text-body">
+                          <ShieldCheck className="w-4 h-4" /> Kredensial login
+                    </h4>
                         <div className="space-y-1 mt-2">
                           <SearchSelect
                             label="Role Akun Pengguna"
@@ -1152,23 +1149,9 @@ function EmployeesView() {
                 </form>
               </div>
 
-              <div className="border-t border-line pt-4 mt-6 flex items-center justify-end gap-3 bg-surface relative z-20">
-                <button
-                  type="button"
-                  onClick={handleCloseForm}
-                  className="px-4 py-2 rounded-lg border border-line text-label font-semibold text-muted hover:text-foreground hover:bg-surface-2 hover:border-line-strong cursor-pointer transition-all"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  form="employee-form"
-                  disabled={submitting}
-                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground border border-transparent text-label font-semibold cursor-pointer hover:bg-primary-hover disabled:opacity-50 active:scale-[0.98] transition-all flex items-center gap-1.5"
-                >
-                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Simpan Karyawan
-                </button>
+              <div className="drawer-foot">
+                <Button type="button" variant="secondary" onClick={handleCloseForm}>Batal</Button>
+                <Button type="submit" form="employee-form" loading={submitting}>Simpan karyawan</Button>
               </div>
             </motion.div>
           </div></Portal>

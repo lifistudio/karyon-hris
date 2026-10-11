@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, Lock } from "lucide-react";
+import { ArrowRight, Lock } from "@/components/icons";
 import { Card, IconTile, PageHeader, ICON_STROKE } from "@/components/ui";
 
 const REASONS = {

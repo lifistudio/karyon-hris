@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/ui/Pagination";
 import Link from "next/link";
-import { CircleCheck, FileText, MessageSquare, Printer, Target, TrendingUp } from "lucide-react";
+import { CircleCheck, FileText, MessageSquare, Printer, Target, TrendingUp } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -127,7 +127,7 @@ export default function PortalKpiPage() {
   return (
     <div>
       <PageHeader
-        title="Penilaian Kinerja Saya"
+        title="Penilaian kinerja saya"
         description="Hasil penilaian dari atasan beserta catatan dan rencana pengembangannya."
       />
 

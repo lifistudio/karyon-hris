@@ -3,20 +3,7 @@
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import {
-  BookOpen,
-  CalendarDays,
-  ChevronDown,
-  Clock,
-  CreditCard,
-  ExternalLink,
-  LifeBuoy,
-  MessageSquareWarning,
-  Package,
-  Repeat,
-  ShieldCheck,
-  Target,
-} from "lucide-react";
+import { BookOpen, CalendarDays, ChevronDown, Clock, CreditCard, ExternalLink, LifeBuoy, MessageSquareWarning, Package, Repeat, ShieldCheck, Target } from "@/components/icons";
 import { Alert, Badge, Card, CardBody, CardHeader, cn } from "@/components/ui";
 import { ROLE_LABELS } from "@/lib/docs/roles";
 
@@ -156,7 +143,7 @@ export default function HelpPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-display-sm md:text-display text-heading">Panduan Penggunaan</h1>
+        <h1 className="text-display-sm md:text-display text-heading">Panduan penggunaan</h1>
         <p className="text-body text-muted mt-2 leading-relaxed">
           Jawaban cepat untuk pertanyaan yang paling sering muncul
           {role ? ` untuk peran ${ROLE_LABELS[role] ?? role}` : ""}.

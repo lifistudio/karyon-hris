@@ -1,20 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  CalendarClock,
-  CalendarDays,
-  CalendarOff,
-  Copy,
-  Eye,
-  Info,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-  Users,
-  X,
-} from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarOff, Copy, Eye, Info, Pencil, Plus, Search, Trash2, Users, X } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -50,7 +37,7 @@ import {
   workMinutes,
   type ScheduleDay,
 } from "@/lib/hr/schedule-days";
-import { formatDate, formatDateLong, wibDateKey } from "@/lib/time";
+import { formatDate, formatDateLong, wibDateKey, isoOffset } from "@/lib/time";
 
 interface Template {
   _id: string;
@@ -734,7 +721,7 @@ function PreviewModal({ employee, onClose }: { employee: EmployeeRow; onClose: (
         <ul className="divide-y divide-[var(--border)] -mx-1">
           {days.map((d) => (
             <li key={d.date} className="flex items-center justify-between gap-3 px-1 py-2.5">
-              <span className="text-body-sm text-foreground min-w-0">{formatDateLong(`${d.date}T00:00:00+07:00`)}</span>
+              <span className="text-body-sm text-foreground min-w-0">{formatDateLong(`${d.date}T00:00:00${isoOffset()}`)}</span>
               <span className="flex items-center gap-2 shrink-0">
                 <span className={cn("text-body-sm tabular-nums", d.isOffDay ? "text-subtle" : "text-heading font-medium")}>
                   {d.isOffDay ? "Libur" : `${d.clockIn}–${d.clockOut}`}

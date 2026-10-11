@@ -3,17 +3,7 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  CalendarClock,
-  FileText,
-  MapPin,
-  Search,
-  SlidersHorizontal,
-  Star,
-  UserPlus,
-  Users,
-  X,
-} from "lucide-react";
+import { CalendarClock, FileText, MapPin, Search, SlidersHorizontal, Star, UserPlus, Users, X } from "@/components/icons";
 import {
   Badge,
   Button,
@@ -358,7 +348,7 @@ function ApplicantsView() {
       ) : (
         <div className={cn("transition-opacity", loading && "opacity-60")}>
           {/* Phones: cards. A seven-column table is unreadable at 375px. */}
-          <div className="md:hidden space-y-2.5">
+          <div className="lg:hidden space-y-2.5">
             {data.rows.map((r) => (
               <Link key={r._id} href={`/admin/recruitment/${r._id}`} className="block card p-4 hover:border-primary transition-colors">
                 <div className="flex items-start justify-between gap-3">
@@ -384,7 +374,7 @@ function ApplicantsView() {
             ))}
           </div>
 
-          <Card className="hidden md:block overflow-hidden">
+          <Card className="hidden lg:block overflow-hidden">
             <TableWrap>
               <thead>
                 <tr>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Layers, Plus, Save, Trash2, TriangleAlert } from "lucide-react";
+import { Layers, Plus, Save, Trash2, TriangleAlert } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -602,7 +602,7 @@ function AspectEditor({
   const indicatorTotal = aspect.indicators.reduce((n, i) => n + (Number(i.weight) || 0), 0);
 
   return (
-    <div className="rounded-[var(--radius)] border border-line">
+    <div className="rounded-[var(--radius-card)] border border-line">
       <div className="flex items-start gap-3 p-4 border-b border-line bg-surface-2/50">
         <div className="flex-1 min-w-0 grid sm:grid-cols-[1fr_110px] gap-3">
           <Input

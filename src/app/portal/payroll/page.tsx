@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/ui/Pagination";
-import { CreditCard, FileText, Printer, ShieldCheck, TrendingDown, TrendingUp } from "lucide-react";
+import { CreditCard, FileText, Printer, ShieldCheck, TrendingDown, TrendingUp } from "@/components/icons";
 import Link from "next/link";
 import { DecisionEvidence } from "@/components/portal/DecisionEvidence";
 import type { DecisionEvidence as Evidence } from "@/lib/hr/policy-evidence";
@@ -90,7 +90,7 @@ export default function PortalPayrollPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-display-sm md:text-display text-heading">Slip Gaji Saya</h1>
+        <h1 className="text-display-sm md:text-display text-heading">Slip gaji saya</h1>
         <p className="text-body text-muted mt-2 leading-relaxed">
           Riwayat slip gaji Anda tersimpan permanen dan hanya dapat diakses oleh Anda.
         </p>
@@ -252,7 +252,7 @@ export default function PortalPayrollPage() {
             </Section>
 
             <div className="flex items-center justify-between gap-4 rounded-lg bg-primary-soft text-primary px-4 py-3.5">
-              <span className="text-label font-semibold uppercase tracking-wide">Gaji bersih</span>
+              <span className="text-label font-semibold">Gaji bersih</span>
               <span className="text-title-sm font-semibold tabular-nums">{formatRupiah(detail.netSalary)}</span>
             </div>
 

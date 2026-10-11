@@ -4,15 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import {
-  ArrowLeft,
-  Filter,
-  Menu,
-  Moon,
-  Search,
-  Sun,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Filter, Menu, Moon, Search, Sun, X } from "@/components/icons";
 import { useTheme } from "@/components/ThemeProvider";
 import { Alert, Badge, ErrorState, Input, Select, SkeletonList, cn } from "@/components/ui";
 import { api, errorMessage } from "@/lib/client-api";
@@ -105,7 +97,7 @@ export default function DocsPage() {
     <nav className="space-y-5">
       {chapters.map((c) => (
         <div key={c.id}>
-          <p className="eyebrow px-2 mb-1.5">
+          <p className="px-3 mb-1 text-body-sm font-semibold text-heading">
             {c.title}
           </p>
           <ul className="space-y-0.5">
@@ -115,10 +107,10 @@ export default function DocsPage() {
                   href={`#${s.id}`}
                   onClick={() => setNavOpen(false)}
                   className={cn(
-                    "block px-2 py-1.5 rounded-lg text-label leading-snug transition-colors",
+                    "block px-3 py-1.5 rounded-xl text-body-sm leading-snug transition-colors",
                     activeId === s.id
-                      ? "bg-primary-soft text-primary font-semibold"
-                      : "text-muted hover:text-foreground hover:bg-surface-2"
+                      ? "bg-background-primary-default text-heading font-medium shadow-xs"
+                      : "text-muted hover:text-foreground hover:bg-background-secondary-hover"
                   )}
                 >
                   {s.title}
@@ -133,24 +125,20 @@ export default function DocsPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="h-16 border-b border-line bg-surface sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto h-full px-4 md:px-6 flex items-center justify-between gap-3">
+      <header className="h-16 bg-background/85 backdrop-blur-xl sticky top-0 z-40">
+        <div className="max-w-[100rem] mx-auto h-full px-4 md:px-6 lg:px-8 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setNavOpen(true)}
               aria-label="Buka daftar isi"
-              className="lg:hidden p-2 rounded-lg text-muted hover:bg-surface-2 cursor-pointer"
+              className="lg:hidden grid size-9 place-items-center rounded-full text-muted hover:bg-background-secondary-default cursor-pointer"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <Link href="/" className="flex items-center gap-2.5 min-w-0">
-              <BrandLogo variant="mark" height={30} />
-              <span className="min-w-0">
-                <span className="block text-body font-semibold truncate">Dokumentasi HRIS</span>
-                <span className="hidden sm:block text-caption text-subtle">
-                  Panduan penggunaan &amp; acuan teknis
-                </span>
-              </span>
+            <Link href="/" className="flex items-center gap-3 min-w-0">
+              <BrandLogo height={26} />
+              <span className="hidden sm:block h-5 w-px bg-line" aria-hidden />
+              <span className="hidden sm:block text-body font-medium text-heading truncate">Dokumentasi</span>
             </Link>
           </div>
 
@@ -158,25 +146,26 @@ export default function DocsPage() {
             <button
               onClick={toggleTheme}
               aria-label={theme === "dark" ? "Mode terang" : "Mode gelap"}
-              className="p-2 rounded-lg text-muted hover:text-foreground hover:bg-surface-2 cursor-pointer"
+              className="grid size-9 place-items-center rounded-full text-muted hover:text-foreground hover:bg-background-secondary-default cursor-pointer"
             >
               {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
             <Link
               href={sessionRole && sessionRole !== "STAFF" ? "/admin" : "/portal/attendance"}
-              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-label font-semibold text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
+              aria-label="Kembali ke aplikasi"
+              title="Kembali ke aplikasi"
+              className="grid size-9 place-items-center rounded-full text-muted hover:text-foreground hover:bg-background-secondary-default transition-colors"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Kembali ke aplikasi
+              <ArrowLeft className="w-[18px] h-[18px]" />
             </Link>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 grid gap-8 lg:grid-cols-[240px_1fr]">
+      <div className="max-w-[100rem] mx-auto px-4 md:px-6 lg:px-8 pt-4 pb-12 grid grid-cols-1 gap-10 lg:grid-cols-[17rem_minmax(0,1fr)]">
         {/* Sidebar */}
         <aside className="hidden lg:block">
-          <div className="sticky top-24 space-y-4 max-h-[calc(100vh-8rem)] overflow-y-auto pr-2">
+          <div className="docs-scroll sticky top-20 space-y-5 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-3xl bg-background-secondary-default p-3">
             <DocFilters
               query={query}
               setQuery={setQuery}
@@ -196,15 +185,15 @@ export default function DocsPage() {
             onClick={() => setNavOpen(false)}
           >
             <div
-              className="w-80 max-w-[85vw] h-full bg-surface border-r border-line p-4 overflow-y-auto animate-fade-up"
+              className="m-2 w-80 max-w-[85vw] h-[calc(100dvh-16px)] rounded-3xl bg-background-secondary-default p-3 overflow-y-auto animate-fade-up"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-body font-semibold">Daftar isi</span>
+              <div className="flex items-center justify-between mb-4 px-1">
+                <span className="text-body-lg font-semibold text-heading">Daftar isi</span>
                 <button
                   onClick={() => setNavOpen(false)}
                   aria-label="Tutup"
-                  className="p-1.5 rounded-lg text-muted hover:bg-surface-2 cursor-pointer"
+                  className="icon-close"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -224,9 +213,9 @@ export default function DocsPage() {
         )}
 
         {/* Content */}
-        <main className="min-w-0">
-          <div className="mb-8">
-            <h1 className="text-display-sm md:text-display text-heading">Panduan Penggunaan HRIS</h1>
+        <main className="min-w-0 max-w-[52rem]">
+          <div className="mb-10 pt-4">
+            <h1 className="text-display-sm md:text-display text-heading">Panduan penggunaan HRIS</h1>
             <p className="mt-2 text-body text-muted leading-relaxed max-w-2xl">
               {canPreview
                 ? "Sebagai Superadmin Anda melihat panduan semua peran. Pilih peran di penyaring untuk melihat persis apa yang ditampilkan kepada peran tersebut."
@@ -264,7 +253,7 @@ export default function DocsPage() {
             <div className="space-y-14">
               {chapters.map((chapter) => (
                 <section key={chapter.id}>
-                  <h2 className="text-label font-semibold uppercase tracking-wider text-primary mb-5 pb-2 border-b border-line">
+                  <h2 className="text-title font-semibold text-heading mb-6">
                     {chapter.title}
                   </h2>
                   <div className="space-y-10">
@@ -277,7 +266,7 @@ export default function DocsPage() {
             </div>
           )}
 
-          <footer className="mt-16 pt-6 border-t border-line flex flex-wrap items-center justify-between gap-3 text-caption text-subtle">
+          <footer className="mt-16 rounded-3xl bg-background-secondary-default px-5 py-4 flex flex-wrap items-center justify-between gap-3 text-body-sm text-muted">
             <p>Dokumentasi ini menjelaskan perilaku sistem versi yang sedang berjalan.</p>
             {canPreview && (
               <Link href="/api-docs" className="hover:text-foreground transition-colors">
@@ -307,13 +296,13 @@ function DocFilters({
   return (
     <div className="space-y-2">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-subtle pointer-events-none" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle pointer-events-none" />
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Cari di dokumentasi…"
           aria-label="Cari di dokumentasi"
-          className="pl-9 h-9 text-label"
+          className="ps-10 bg-background-primary-default"
         />
       </div>
       {canPreview && (
@@ -344,7 +333,7 @@ function SectionView({ section }: { section: DocSection }) {
       <h3
         id={section.id}
         data-doc-section
-        className="scroll-mt-24 text-title-sm font-semibold tracking-tight flex flex-wrap items-center gap-2"
+        className="scroll-mt-24 text-title-sm font-semibold text-heading flex flex-wrap items-center gap-2"
       >
         {section.title}
         {section.audience.length > 0 && (
@@ -357,7 +346,7 @@ function SectionView({ section }: { section: DocSection }) {
           </span>
         )}
       </h3>
-      <p className="mt-1 text-label text-subtle">{section.summary}</p>
+      <p className="mt-1.5 text-body text-muted">{section.summary}</p>
 
       <div className="mt-4 space-y-4">
         {section.blocks.map((block, i) => (
@@ -378,7 +367,7 @@ function BlockView({ block }: { block: DocBlock }) {
         <ol className="space-y-2.5 max-w-3xl">
           {block.items.map((item, i) => (
             <li key={i} className="flex gap-3">
-              <span className="grid place-items-center w-5 h-5 rounded-full bg-primary-soft text-primary text-caption font-semibold shrink-0 mt-0.5 tabular-nums">
+              <span className="grid place-items-center size-6 rounded-full bg-background-secondary-default text-heading text-label font-semibold shrink-0 tabular-nums">
                 {i + 1}
               </span>
               <span className="text-body text-foreground/85 leading-relaxed">{item}</span>
@@ -409,13 +398,13 @@ function BlockView({ block }: { block: DocBlock }) {
     case "table":
       return (
         <div className="overflow-x-auto max-w-3xl">
-          <table className="w-full text-body border-collapse min-w-[520px] card">
+          <table className="w-full text-body border-separate border-spacing-0 min-w-[520px] overflow-hidden rounded-2xl border border-border-button-default">
             <thead>
               <tr>
                 {block.head.map((h) => (
                   <th
                     key={h}
-                    className="text-left text-caption font-semibold uppercase tracking-wide text-subtle px-4 py-2.5 border-b border-line"
+                    className="text-left text-body-sm font-medium text-muted bg-background-secondary-default px-4 py-2.5 border-b border-line"
                   >
                     {h}
                   </th>
@@ -429,8 +418,8 @@ function BlockView({ block }: { block: DocBlock }) {
                     <td
                       key={j}
                       className={cn(
-                        "px-4 py-2.5 border-b border-line text-label leading-relaxed align-top",
-                        j === 0 ? "font-semibold text-foreground" : "text-muted"
+                        "px-4 py-3 border-b border-line text-body-sm leading-relaxed align-top",
+                        j === 0 ? "font-medium text-heading" : "text-muted"
                       )}
                     >
                       {cell}

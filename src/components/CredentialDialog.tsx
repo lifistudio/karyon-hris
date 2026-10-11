@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, Copy, KeyRound } from "lucide-react";
+import { Check, Copy, KeyRound } from "@/components/icons";
 import { Alert, Button, ICON_STROKE, Modal } from "@/components/ui";
 
 /**

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { Image as ImageIcon, Trash2, Upload } from "lucide-react";
+import { Image as ImageIcon, Trash2, Upload } from "@/components/icons";
 import { Button, Field, Toggle, ICON_STROKE } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/client-api";

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "@/components/icons";
 import { Alert, Button, Field, ICON_STROKE, Modal, Textarea, cn } from "@/components/ui";
 
 export interface StageMove {

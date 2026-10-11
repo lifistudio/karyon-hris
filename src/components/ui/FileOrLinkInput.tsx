@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useId, useRef, useState } from "react";
-import { AlertCircle, FileText, Link2, LoaderCircle, Paperclip, UploadCloud, X } from "lucide-react";
+import { AlertCircle, FileText, Link2, LoaderCircle, Paperclip, UploadCloud, X } from "@/components/icons";
 import { cn, ICON_STROKE } from "./core";
 import {
   ACCEPT_ATTR,

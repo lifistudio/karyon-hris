@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, X } from "@/components/icons";
 import { cn, ICON_STROKE } from "./core";
 import { FloatingPanel, useFloatingPlacement } from "./Floating";
 
@@ -64,11 +64,11 @@ function formatLong(key: string): string {
 
 const triggerClass = (open: boolean) =>
   cn(
-    "w-full h-11 rounded-[var(--radius-control)] bg-surface border border-line px-3",
+    "w-full h-10 rounded-[var(--radius-control)] bg-[var(--field-bg)] border border-transparent px-3",
     "flex items-center gap-2 text-left text-body transition-colors",
-    "hover:border-line-strong focus:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20",
+    "hover:bg-[var(--field-bg-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
     "disabled:opacity-55 disabled:cursor-not-allowed",
-    open && "border-primary ring-2 ring-primary/20"
+    open && "bg-surface border-line ring-2 ring-[var(--ring)]"
   );
 
 function NavButton({

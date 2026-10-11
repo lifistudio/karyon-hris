@@ -3,7 +3,7 @@
 import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { AlarmClock, FileSignature, FileText, FileWarning, Plus, Search, ShieldCheck } from "lucide-react";
+import { AlarmClock, FileSignature, FileText, FileWarning, Plus, Search, ShieldCheck } from "@/components/icons";
 import {
   Badge,
   Button,
@@ -239,7 +239,7 @@ function ContractsView() {
             </Card>
           ) : (
             <div className={cn("transition-opacity", loading && "opacity-60")}>
-              <div className="md:hidden space-y-2.5">
+              <div className="lg:hidden space-y-2.5">
                 {rows.map((r) => (
                   <button key={r._id} type="button" onClick={() => setOpenId(r._id)} className="w-full text-left card p-4 hover:border-primary transition-colors cursor-pointer">
                     <div className="flex items-start justify-between gap-3">
@@ -255,7 +255,7 @@ function ContractsView() {
                   </button>
                 ))}
               </div>
-              <Card className="hidden md:block overflow-hidden">
+              <Card className="hidden lg:block overflow-hidden">
                 <TableWrap>
                   <thead>
                     <tr>

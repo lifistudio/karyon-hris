@@ -1,12 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ClipboardList, Briefcase, Plus, Trash2, Edit, X, Loader2, AlertCircle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { ClipboardList, Briefcase, Plus, Trash2, Edit } from "@/components/icons";
 import SearchSelect from "@/components/SearchSelect";
 
-import { Select } from "@/components/ui";
-import { Portal } from "@/components/ui/Floating";
+import { Alert, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, SkeletonList, TableWrap, Tabs, Td, Textarea, Th, Tr } from "@/components/ui";
 import { confirmDialog } from "@/components/ui/ConfirmHost";
 /**
  * A reference the API may return either populated or as a bare id, depending on
@@ -219,292 +217,162 @@ export default function DepartmentsPage() {
     }
   };
 
+  const noun = activeTab === "division" ? "divisi" : "jabatan";
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between border-b border-line pb-4">
-        <div>
-          <h1 className="text-title font-semibold text-foreground">Divisi & Jabatan</h1>
-          <p className="text-label text-muted mt-1">Kelola departemen divisi kerja dan penamaan jenjang jabatan karyawan</p>
-        </div>
-        <button
-          onClick={() => handleOpenForm()}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground border border-transparent text-body font-semibold cursor-pointer hover:bg-primary-hover active:scale-[0.98] transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          Tambah {activeTab === "division" ? "Divisi" : "Jabatan"}
-        </button>
+    <div>
+      <PageHeader
+        title="Divisi & jabatan"
+        description="Kelola divisi kerja dan jenjang jabatan yang dipakai di data karyawan dan lowongan."
+        actions={<Button icon={Plus} onClick={() => handleOpenForm()}>Tambah {noun}</Button>}
+      />
+
+      <div className="mb-4">
+        <Tabs
+          value={activeTab}
+          onChange={setActiveTab}
+          tabs={[
+            { id: "division", label: "Divisi", icon: ClipboardList },
+            { id: "position", label: "Jabatan", icon: Briefcase },
+          ]}
+        />
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 p-1 bg-surface-2 border border-line rounded-lg w-fit">
-        <button
-          onClick={() => setActiveTab("division")}
-          className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-label font-semibold cursor-pointer transition-all ${ activeTab === "division" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground" }`}
-        >
-          <ClipboardList className="w-3.5 h-3.5" />
-          Divisi / Departemen
-        </button>
-        <button
-          onClick={() => setActiveTab("position")}
-          className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-label font-semibold cursor-pointer transition-all ${ activeTab === "position" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground" }`}
-        >
-          <Briefcase className="w-3.5 h-3.5" />
-          Jabatan Kerja
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="h-64 flex items-center justify-center text-muted">
-          <Loader2 className="w-8 h-8 animate-spin text-foreground" />
-        </div>
-      ) : items.length === 0 ? (
-        <div className="h-48 border border-dashed border-line rounded-xl flex flex-col items-center justify-center text-center p-6 text-muted">
-          {activeTab === "division" ? <ClipboardList className="w-8 h-8 mb-2 opacity-50" /> : <Briefcase className="w-8 h-8 mb-2 opacity-50" />}
-          <p className="text-body font-medium">Belum ada {activeTab === "division" ? "divisi" : "jabatan"} terdaftar</p>
-          <p className="text-label mt-1">Tambahkan data master baru untuk melengkapi data jabatan operasional karyawan.</p>
-        </div>
-      ) : (
-        <div className="bg-surface border border-line rounded-xl overflow-hidden">
-          <table className="w-full text-left text-label border-collapse">
+      <Card className="overflow-hidden">
+        {loading ? (
+          <div className="p-4"><SkeletonList rows={4} /></div>
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={activeTab === "division" ? ClipboardList : Briefcase}
+            title={`Belum ada ${noun}`}
+            description={`Tambahkan ${noun} agar dapat dipilih saat mengisi data karyawan.`}
+            action={<Button icon={Plus} onClick={() => handleOpenForm()}>Tambah {noun}</Button>}
+          />
+        ) : (
+          <TableWrap>
             <thead>
-              <tr className="border-b border-line bg-surface-2 text-muted">
-                <th className="p-4 font-semibold">Nama {activeTab === "division" ? "Divisi / Departemen" : "Jabatan Kerja"}</th>
+              <tr>
+                <Th>Nama {noun}</Th>
                 {activeTab === "division" ? (
                   <>
-                    <th className="p-4 font-semibold">Cabang</th>
-                    <th className="p-4 font-semibold">Ketua Divisi</th>
+                    <Th>Cabang</Th>
+                    <Th>Ketua divisi</Th>
                   </>
                 ) : (
-                  <th className="p-4 font-semibold">Divisi Terkait</th>
+                  <Th>Divisi</Th>
                 )}
-                <th className="p-4 font-semibold text-right">Aksi</th>
+                <Th className="text-right">Aksi</Th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item, idx) => (
-                <tr key={item._id} className="border-b border-line hover:bg-surface-2 transition-all">
-                  <td className="p-4 font-semibold text-foreground text-body">{item.name}</td>
+              {items.map((item) => (
+                <Tr key={item._id}>
+                  <Td className="font-medium text-heading">{item.name}</Td>
                   {activeTab === "division" ? (
                     <>
-                      <td className="p-4 text-muted font-medium">
-                        {refName(item.branchId) || "-"}
-                      </td>
-                      <td className="p-4 text-muted font-medium">
-                        {typeof item.headId === "object" && item.headId
-                          ? `${item.headId.name} (${item.headId.employeeId ?? "-"})`
-                          : "-"}
-                      </td>
+                      <Td className="text-muted">{refName(item.branchId) || "-"}</Td>
+                      <Td className="text-muted">
+                        {typeof item.headId === "object" && item.headId ? `${item.headId.name} (${item.headId.employeeId ?? "-"})` : "-"}
+                      </Td>
                     </>
                   ) : (
-                    <td className="p-4 text-muted font-medium">
-                      {refName(item.divisionId) || "-"}
-                    </td>
+                    <Td className="text-muted">{refName(item.divisionId) || "-"}</Td>
                   )}
-                  <td className="p-4 text-right flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => handleOpenForm(item)}
-                      className="p-1.5 rounded hover:bg-surface-2 text-muted hover:text-foreground transition-all cursor-pointer"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteItem(item._id)}
-                      className="p-1.5 rounded hover:bg-danger-soft text-muted hover:text-danger transition-all cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
-                </tr>
+                  <Td>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" icon={Edit} aria-label={`Ubah ${item.name}`} title="Ubah" onClick={() => handleOpenForm(item)} />
+                      <Button variant="ghost" size="icon" icon={Trash2} aria-label={`Hapus ${item.name}`} title="Hapus" onClick={() => handleDeleteItem(item._id)} />
+                    </div>
+                  </Td>
+                </Tr>
               ))}
             </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Overlay Form Modal */}
-      <AnimatePresence>
-        {formOpen && (
-          <Portal><div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center font-sans">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={handleCloseForm}
-              className="absolute inset-0 bg-overlay"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-surface border border-line shadow-[var(--shadow-pop)] rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto relative z-10 p-6"
-            >
-              <div className="flex items-center justify-between border-b border-line pb-4 mb-4">
-                <h3 className="text-body-lg font-semibold text-foreground">
-                  {selectedId ? `Edit ${activeTab === "division" ? "Divisi" : "Jabatan"}` : `Tambah ${activeTab === "division" ? "Divisi" : "Jabatan"} Baru`}
-                </h3>
-                <button
-                  onClick={handleCloseForm}
-                  className="p-1 rounded bg-surface border border-line text-muted hover:text-foreground cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {errorMessage && (
-                <div className="p-3 rounded-lg bg-danger-soft border border-danger/20 text-danger text-label flex items-center gap-2 mb-4">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-4 text-label">
-                <div className="space-y-1">
-                  <label className="text-foreground font-semibold">Nama {activeTab === "division" ? "Divisi" : "Jabatan"}</label>
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder={activeTab === "division" ? "e.g. Finance & Accounting" : "e.g. Senior Software Engineer"}
-                    className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all placeholder:text-subtle text-label"
-                  />
-                </div>
-
-                {activeTab === "division" ? (
-                  <>
-                    <SearchSelect
-                      label="Hubungkan ke Cabang Kantor"
-                      value={divisionBranchId}
-                      onChange={setDivisionBranchId}
-                      options={branches.map((b) => ({
-                        label: b.name,
-                        value: b._id,
-                      }))}
-                      placeholder="Pilih Cabang Kantor..."
-                    />
-
-                    <SearchSelect
-                      label="Ketua / Manager Divisi"
-                      value={headId}
-                      onChange={setHeadId}
-                      options={employees.map((emp) => ({
-                        label: `${emp.name} (${emp.employeeId})`,
-                        value: emp._id,
-                      }))}
-                      placeholder="Pilih Ketua Divisi (Opsional)..."
-                    />
-                  </>
-                ) : (
-                  <>
-                    <SearchSelect
-                      label="Hubungkan ke Divisi"
-                      value={divisionId}
-                      onChange={setDivisionId}
-                      options={divisions.map((div) => ({
-                        label: div.name,
-                        value: div._id,
-                      }))}
-                      placeholder="Pilih Divisi Kerja..."
-                    />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-foreground font-semibold">Tipe Pekerjaan</label>
-                        <Select
-                          value={type}
-                          onChange={(e) => setType(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-label"
-                        >
-                          <option value="Full-Time">Full-Time</option>
-                          <option value="Part-Time">Part-Time</option>
-                          <option value="Contract">Contract</option>
-                          <option value="Internship">Internship</option>
-                          <option value="Freelance">Freelance</option>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-foreground font-semibold">Status Lowongan Loker</label>
-                        <Select
-                          value={status}
-                          onChange={(e) => setStatus(e.target.value as "active" | "inactive")}
-                          className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-label"
-                        >
-                          <option value="active">Aktif (Buka Lowongan)</option>
-                          <option value="inactive">Nonaktif (Tutup Lowongan)</option>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-foreground font-semibold">Lokasi Penempatan Kerja</label>
-                      <input
-                        type="text"
-                        required
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        placeholder="e.g. Jakarta, Remote, Hybrid"
-                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all placeholder:text-subtle text-label"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-foreground font-semibold">Deskripsi Lowongan</label>
-                      <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Deskripsikan penawaran/informasi umum mengenai lowongan ini..."
-                        rows={3}
-                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all placeholder:text-subtle text-label resize-none"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-foreground font-semibold">Tanggung Jawab Pekerjaan (Jobdesk)</label>
-                      <textarea
-                        value={jobdesk}
-                        onChange={(e) => setJobdesk(e.target.value)}
-                        placeholder="Sebutkan tanggung jawab pekerjaan (satu per baris)..."
-                        rows={3}
-                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all placeholder:text-subtle text-label resize-none"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-foreground font-semibold">Kebutuhan / Persyaratan (Requirements)</label>
-                      <textarea
-                        value={requirements}
-                        onChange={(e) => setRequirements(e.target.value)}
-                        placeholder="Sebutkan persyaratan pelamar (satu per baris)..."
-                        rows={3}
-                        className="w-full px-3 py-2 rounded-lg bg-surface border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all placeholder:text-subtle text-label resize-none"
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-line mt-6">
-                  <button
-                    type="button"
-                    onClick={handleCloseForm}
-                    className="px-4 py-2 rounded-lg border border-line text-label font-semibold text-muted hover:text-foreground hover:bg-surface-2 hover:border-line-strong cursor-pointer transition-all"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground border border-transparent text-label font-semibold cursor-pointer hover:bg-primary-hover disabled:opacity-50 active:scale-[0.98] transition-all flex items-center gap-1.5"
-                  >
-                    {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                    Simpan
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div></Portal>
+          </TableWrap>
         )}
-      </AnimatePresence>
+      </Card>
+
+      <Modal
+        open={formOpen}
+        onClose={handleCloseForm}
+        title={selectedId ? `Ubah ${noun}` : `Tambah ${noun}`}
+        size={activeTab === "position" ? "lg" : "md"}
+        footer={
+          <>
+            <Button variant="secondary" onClick={handleCloseForm}>Batal</Button>
+            <Button type="submit" form="master-form" loading={submitting}>Simpan</Button>
+          </>
+        }
+      >
+        <form id="master-form" onSubmit={handleSubmit} className="space-y-4">
+          {errorMessage && <Alert tone="danger">{errorMessage}</Alert>}
+          <Field label={`Nama ${noun}`} required>
+            <Input
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={activeTab === "division" ? "Contoh: Keuangan & Akuntansi" : "Contoh: Senior Software Engineer"}
+            />
+          </Field>
+
+          {activeTab === "division" ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <SearchSelect
+                label="Cabang"
+                value={divisionBranchId}
+                onChange={setDivisionBranchId}
+                options={branches.map((b) => ({ label: b.name, value: b._id }))}
+                placeholder="Pilih cabang…"
+              />
+              <SearchSelect
+                label="Ketua divisi"
+                value={headId}
+                onChange={setHeadId}
+                options={employees.map((emp) => ({ label: `${emp.name} (${emp.employeeId})`, value: emp._id }))}
+                placeholder="Opsional"
+              />
+            </div>
+          ) : (
+            <>
+              <SearchSelect
+                label="Divisi"
+                value={divisionId}
+                onChange={setDivisionId}
+                options={divisions.map((div) => ({ label: div.name, value: div._id }))}
+                placeholder="Pilih divisi…"
+              />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <Field label="Tipe pekerjaan">
+                  <Select aria-label="Tipe pekerjaan" value={type} onChange={(e) => setType(e.target.value)}>
+                    <option value="Full-Time">Penuh waktu</option>
+                    <option value="Part-Time">Paruh waktu</option>
+                    <option value="Contract">Kontrak</option>
+                    <option value="Internship">Magang</option>
+                    <option value="Freelance">Lepas</option>
+                  </Select>
+                </Field>
+                <Field label="Status lowongan">
+                  <Select aria-label="Status lowongan" value={status} onChange={(e) => setStatus(e.target.value as "active" | "inactive")}>
+                    <option value="active">Dibuka</option>
+                    <option value="inactive">Ditutup</option>
+                  </Select>
+                </Field>
+                <Field label="Lokasi kerja" required>
+                  <Input required value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Jakarta, Remote, Hybrid" />
+                </Field>
+              </div>
+              <Field label="Deskripsi lowongan">
+                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Informasi umum tentang posisi ini" />
+              </Field>
+              <Field label="Tanggung jawab" hint="Satu poin per baris.">
+                <Textarea value={jobdesk} onChange={(e) => setJobdesk(e.target.value)} rows={3} />
+              </Field>
+              <Field label="Persyaratan" hint="Satu poin per baris.">
+                <Textarea value={requirements} onChange={(e) => setRequirements(e.target.value)} rows={3} />
+              </Field>
+            </>
+          )}
+        </form>
+      </Modal>
     </div>
   );
 }

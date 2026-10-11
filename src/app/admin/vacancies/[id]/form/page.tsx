@@ -3,19 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {
-  ArrowLeft,
-  Eye,
-  EyeOff,
-  ListChecks,
-  Lock,
-  Pencil,
-  Plus,
-  RotateCcw,
-  Save,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, ListChecks, Lock, Pencil, Plus, RotateCcw, Save, Trash2, X } from "@/components/icons";
 import {
   Alert,
   Badge,

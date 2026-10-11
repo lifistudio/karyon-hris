@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { GripVertical } from "lucide-react";
+import { GripVertical } from "@/components/icons";
 import { cn, ICON_STROKE } from "./core";
 
 /** Moves one item, returning a new array. */

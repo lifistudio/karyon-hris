@@ -23,6 +23,7 @@ import Counter from "@/models/Counter";
 import Role from "@/models/Role";
 import { missingProfileFields } from "@/lib/hr/employee-completeness";
 import { initialPasswordFor } from "@/lib/auth/initial-password";
+import { isoOffset } from "@/lib/time";
 
 /**
  * Employee master data.
@@ -95,7 +96,7 @@ const employeeSchema = z.object({
 
 /** A `YYYY-MM-DD` from a date picker is a WIB calendar day, not UTC midnight. */
 function toWibDate(value: string): Date {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00+07:00`) : new Date(value);
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00${isoOffset()}`) : new Date(value);
 }
 
 /* ------------------------------------------------------------------ */

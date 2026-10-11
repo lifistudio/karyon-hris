@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, History, Search, ShieldCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, History, Search, ShieldCheck } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -133,7 +133,7 @@ export default function AuditPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-display-sm md:text-display text-heading">Aktivitas Audit</h1>
+          <h1 className="text-display-sm md:text-display text-heading">Aktivitas audit</h1>
           <p className="text-body text-muted mt-2 leading-relaxed">
             Jejak seluruh tindakan berkonsekuensi di dalam sistem.
           </p>

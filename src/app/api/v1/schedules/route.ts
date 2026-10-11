@@ -6,7 +6,7 @@ import { requirePermission, parseBody, pagination, BadRequest, Conflict, NotFoun
 import { logActivity } from "@/lib/audit/logger";
 import { resolveSchedule } from "@/lib/hr/calendar";
 import { expandDays, summariseDays, workMinutes } from "@/lib/hr/schedule-days";
-import { eachDayKey, wibDateKey, wibEndOfDay, wibStartOfDay } from "@/lib/time";
+import { eachDayKey, wibDateKey, wibEndOfDay, wibStartOfDay, getTimezoneOffset } from "@/lib/time";
 import WorkSchedule from "@/models/WorkSchedule";
 import EmployeeSchedule from "@/models/EmployeeSchedule";
 import Employee from "@/models/Employee";
@@ -121,7 +121,7 @@ export const GET = wrapRouteHandler(async (req) => {
       rows.map((r) => {
         const tpl = r.scheduleId as Record<string, unknown> | null;
         if (!tpl || r.isOffDay) return { ...r, hours: null };
-        const weekday = new Date(wibStartOfDay(wibDateKey(r.date as Date)).getTime() + 7 * 3600_000).getUTCDay();
+        const weekday = new Date(wibStartOfDay(wibDateKey(r.date as Date)).getTime() + getTimezoneOffset() * 60_000).getUTCDay();
         const d = expandDays(tpl).find((x) => x.day === weekday);
         return { ...r, hours: d ? `${d.clockIn}–${d.clockOut}` : null };
       }),

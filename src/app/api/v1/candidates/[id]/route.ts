@@ -10,6 +10,7 @@ import CandidateStageHistory from "@/models/CandidateStageHistory";
 import JobVacancy from "@/models/JobVacancy";
 import Employee from "@/models/Employee";
 import User from "@/models/User";
+import { timezoneName } from "@/lib/time";
 
 type Ctx = RouteContext<{ id: string }>;
 
@@ -190,7 +191,7 @@ export const POST = wrapRouteHandler<Ctx>(async (req, { params }) => {
       // should learn about an interview from a calendar they never saw.
       if (body.interviewerUserId && body.interviewerUserId !== ctx.user.id) {
         const whenText = when.toLocaleString("id-ID", {
-          timeZone: "Asia/Jakarta",
+          timeZone: timezoneName(),
           dateStyle: "full",
           timeStyle: "short",
         });

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, RefreshCw, SwitchCamera, X } from "lucide-react";
+import { Camera, RefreshCw, SwitchCamera, X } from "@/components/icons";
 import { Alert, Button } from "@/components/ui";
 
 /**

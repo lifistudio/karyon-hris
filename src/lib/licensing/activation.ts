@@ -29,6 +29,12 @@ interface ActivationState {
   installationId: string;
   /** Empty after "Lepas lisensi"; the installation id is kept for the next activation. */
   activationSecret: string;
+  /**
+   * The secret held before "Lepas lisensi". When the remote release did not
+   * reach the license website, the website still binds the key to this
+   * installation and asks for this secret to re-activate the same key.
+   */
+  previousSecret?: string;
   lease: string;
   siteOrigin: string;
   updatedAt: string;
@@ -115,7 +121,7 @@ export async function activateLicense(licenseKey: string) {
     installationId,
     instanceName: String(settings.company_name ?? "HRIS").slice(0, 120) || "HRIS",
     siteOrigin: origin,
-    ...(current?.activationSecret ? { activationSecret: current.activationSecret } : {}),
+    ...(current?.activationSecret || current?.previousSecret ? { activationSecret: current.activationSecret || current.previousSecret } : {}),
   }, "License key tidak dikenal. Salin ulang dari dashboard pelanggan di website lisensi.");
   await writeActivation({
     installationId,
@@ -170,7 +176,7 @@ export async function deactivateLicense(): Promise<{ remoteReleased: boolean }> 
   } catch (error) {
     if (!(error instanceof LicenseServerError)) throw error;
   }
-  await writeActivation({ installationId: current.installationId, activationSecret: "", lease: "", siteOrigin: current.siteOrigin, updatedAt: new Date().toISOString(), keyHint: current.keyHint, licenseState: "released" });
+  await writeActivation({ installationId: current.installationId, activationSecret: "", previousSecret: current.activationSecret, lease: "", siteOrigin: current.siteOrigin, updatedAt: new Date().toISOString(), keyHint: current.keyHint, licenseState: "released" });
   return { remoteReleased };
 }
 

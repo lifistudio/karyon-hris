@@ -13,6 +13,8 @@ import { ConfirmHost } from "@/components/ui/ConfirmHost";
 import { BrandingProvider } from "@/components/brand/BrandLogo";
 import { getBranding } from "@/lib/branding/server";
 import { FAVICON } from "@/lib/branding/defaults";
+import { TimezoneSync } from "@/components/TimezoneSync";
+import { currentTimezoneOffset } from "@/lib/timezone-server";
 
 export const metadata: Metadata = {
   title: {
@@ -41,6 +43,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const branding = await getBranding();
+  const timezoneOffset = await currentTimezoneOffset();
   return (
     <html
       lang="id"
@@ -52,6 +55,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-full flex flex-col font-sans">
+        <TimezoneSync minutes={timezoneOffset} />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-[200] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-primary focus:text-primary-foreground focus:text-body focus:font-semibold"

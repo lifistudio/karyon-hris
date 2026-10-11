@@ -10,6 +10,7 @@ import {
   invalidateSettingsCache,
 } from "@/lib/settings";
 import Setting from "@/models/Setting";
+import { refreshTimezone } from "@/lib/timezone-server";
 
 /**
  * Reads the effective configuration: stored rows merged over the declared
@@ -80,6 +81,7 @@ export const POST = wrapRouteHandler(async (req) => {
   }
 
   invalidateSettingsCache();
+  if (changed.timezone_offset_minutes) await refreshTimezone(true);
   const after = await getSettings(true);
 
   if (Object.keys(changed).length) {

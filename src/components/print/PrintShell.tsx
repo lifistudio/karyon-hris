@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Printer } from "@/components/icons";
 import { Button, ICON_STROKE } from "@/components/ui";
 
 /**

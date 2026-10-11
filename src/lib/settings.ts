@@ -1,5 +1,6 @@
 import Setting from "@/models/Setting";
 import { connectToDatabase } from "./db";
+import { DEFAULT_TIMEZONE_OFFSET_MINUTES, setTimezoneOffset, timezoneLabel } from "./time";
 
 /**
  * Single source of truth for every configurable business rule.
@@ -35,19 +36,28 @@ export type SettingGroup =
   | "payroll"
   | "security"
   | "notification"
-  | "company";
+  | "company"
+  | "region";
 
 export const SETTING_GROUPS: Array<{ id: SettingGroup; label: string; description: string }> = [
-  { id: "company", label: "Identitas Perusahaan", description: "Nama dan info yang tampil di slip gaji, email, dan halaman publik." },
+  { id: "company", label: "Identitas perusahaan", description: "Nama dan info yang tampil di slip gaji, email, dan halaman publik." },
   { id: "attendance", label: "Presensi", description: "Toleransi keterlambatan, selfie, radius, dan koreksi absen." },
-  { id: "leave", label: "Izin & Cuti", description: "Perhitungan hari, bukti, dan batas pengajuan." },
-  { id: "holiday_swap", label: "Tukar Libur & Lembur", description: "Aturan tukar hari libur nasional dan konversi lembur." },
+  { id: "leave", label: "Izin & cuti", description: "Perhitungan hari, bukti, dan batas pengajuan." },
+  { id: "holiday_swap", label: "Tukar libur & lembur", description: "Aturan tukar hari libur nasional dan konversi lembur." },
   { id: "payroll", label: "Payroll", description: "Tarif potongan, lembur, BPJS, dan pajak." },
   { id: "security", label: "Keamanan", description: "Kebijakan password, sesi, dan pembatasan login." },
   { id: "notification", label: "Notifikasi", description: "Kanal pengiriman pemberitahuan otomatis." },
+  { id: "region", label: "Zona waktu", description: "Patokan jam untuk presensi, batas hari, laporan, dan semua tampilan waktu." },
 ];
 
+/** UTC−12 … UTC+14 in whole hours; stored as minutes so half-hour zones can be added later. */
+const TIMEZONE_OPTIONS = Array.from({ length: 27 }, (_, i) => {
+  const minutes = (i - 12) * 60;
+  return { value: String(minutes), label: timezoneLabel(minutes) };
+});
+
 export const SETTING_DEFS: SettingDef[] = [
+  { key: "timezone_offset_minutes", label: "Zona waktu perusahaan", description: "Default GMT+7 (WIB). Mengubah zona waktu menggeser jam masuk, batas keterlambatan, pergantian hari, dan laporan untuk semua cabang. Data lama tetap tersimpan dalam UTC.", type: "select", default: String(DEFAULT_TIMEZONE_OFFSET_MINUTES), group: "region", options: TIMEZONE_OPTIONS },
   { key: "birthday_window_mode", label: "Periode daftar ulang tahun", description: "Berlaku sama untuk overview, menu admin dan portal karyawan.", type: "select", default: "current_month", group: "company", options: [{ value: "current_month", label: "Bulan ini" }, { value: "upcoming_months", label: "Beberapa bulan ke depan dari hari ini" }, { value: "custom_days", label: "Rentang hari sebelum / sesudah hari ini" }] },
   { key: "birthday_months_ahead", label: "Ulang tahun: bulan ke depan", description: "Untuk mode beberapa bulan. 2 = dari hari ini sampai tanggal yang sama dua bulan lagi (akhir bulan disesuaikan).", type: "number", default: 2, min: 1, max: 6, unit: "bulan", group: "company" },
   { key: "birthday_days_before", label: "Ulang tahun: hari sebelumnya", description: "Untuk rentang hari. Isi 0 untuk hanya hari ini dan ke depan; isi 15 untuk 15 hari terakhir. Pecahan dibulatkan ke bawah.", type: "number", default: 0, min: 0, max: 180, unit: "hari", group: "company" },
@@ -192,6 +202,7 @@ export async function getSettings(force = false): Promise<SettingsSnapshot> {
     console.error("[SETTINGS] Falling back to defaults:", (err as Error).message);
   }
 
+  setTimezoneOffset(Number(snapshot.timezone_offset_minutes));
   cache = { at: Date.now(), data: snapshot };
   return snapshot;
 }

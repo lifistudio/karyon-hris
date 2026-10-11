@@ -131,7 +131,7 @@ export const CHAPTERS: DocChapter[] = [
             tone: "info",
             title: "Semua waktu dalam WIB",
             text:
-              "Jam masuk, batas keterlambatan, dan tanggal pengajuan dihitung memakai zona waktu Asia/Jakarta, bukan jam perangkat Anda. Karyawan di zona waktu lain tetap dinilai dengan patokan yang sama.",
+              "Jam masuk, batas keterlambatan, dan tanggal pengajuan dihitung memakai zona waktu perusahaan (default GMT+7 / WIB), bukan jam perangkat Anda. Superadmin atau peran dengan izin ubah pengaturan dapat menggantinya di Pengaturan → Zona waktu. Karyawan di zona waktu lain tetap dinilai dengan patokan yang sama.",
           },
         ],
       },

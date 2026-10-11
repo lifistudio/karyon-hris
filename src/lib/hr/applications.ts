@@ -9,6 +9,7 @@ import {
   type FormField,
   type StoredAnswer,
 } from "@/lib/hr/application-form";
+import { isoOffset } from "@/lib/time";
 
 /** The form a vacancy uses: its own, or the default for older vacancies. */
 export function resolveFormFields(vacancy: { formFields?: unknown }): FormField[] {
@@ -118,7 +119,7 @@ export async function ingestAnswers(
       addressText: address ? [address.street, address.city, address.province, address.postalCode].filter(Boolean).join(", ") : "",
       city: address?.city ?? "",
       lastEducation: text("lastEducation"),
-      availableFrom: availableFrom ? new Date(`${availableFrom}T00:00:00+07:00`) : null,
+      availableFrom: availableFrom ? new Date(`${availableFrom}T00:00:00${isoOffset()}`) : null,
       expectedSalary: typeof salary === "number" ? salary : null,
       hasCv: cv.length > 0,
       // The first CV is kept in the legacy column too, which older screens read.

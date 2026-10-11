@@ -88,11 +88,13 @@ services:
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      # Face recognition workers (Pro). Empty = automatic (1–2, based on CPU cores).
+      FACE_WORKERS: ${FACE_WORKERS:-}
       # true only when an external scheduler calls /api/v1/cron/daily with CRON_SECRET.
       HRIS_DISABLE_SCHEDULER: ${HRIS_DISABLE_SCHEDULER:-}
       # License website (HTTPS) used by Lisensi & Paket for activation and lease renewal.
       HRIS_LICENSE_SERVER: ${HRIS_LICENSE_SERVER:-}
-      # Only with compose.lifecycle.yml: lets the agent read the signed lease from this app.
+      # Lets the installer manager (compose.manager.yml) read the signed lease from this app.
       HRIS_AGENT_TOKEN: ${HRIS_AGENT_TOKEN:-}
     depends_on:
       postgres:

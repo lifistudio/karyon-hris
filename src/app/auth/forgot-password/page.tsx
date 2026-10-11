@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "@/components/icons";
 import { AuthShell, PasswordInput } from "@/components/auth/AuthShell";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { api, errorMessage } from "@/lib/client-api";

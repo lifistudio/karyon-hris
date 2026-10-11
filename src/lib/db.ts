@@ -1,8 +1,9 @@
 import database from "./postgres";
 import "./postgres-models";
+import { refreshTimezone } from "./timezone-server";
 let connected = false;
 export async function connectToDatabase() {
-  try { await database.connect(); connected = true; return database; }
+  try { await database.connect(); connected = true; await refreshTimezone(); return database; }
   catch (error) { connected = false; throw error; }
 }
 export function isDbConnected() { return connected; }

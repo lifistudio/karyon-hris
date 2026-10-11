@@ -14,17 +14,23 @@ export const PRO_FEATURES = [
 export type ProFeature = (typeof PRO_FEATURES)[number];
 
 export const PRO_FEATURE_LABELS: Record<ProFeature, string> = {
-  "face.advanced": "Face recognition dan perlindungan anti-spoof",
-  "payroll.advanced": "Advanced payroll dan policy simulator",
-  "discipline.workflow": "Bukti keputusan dan disciplinary workflow",
-  "organization.multi_branch": "Multi-cabang",
-  "analytics.advanced": "Analitik lanjutan",
-  "automation.advanced": "Otomatisasi dan scheduler lanjutan",
-  "integration.api": "Integrasi API",
-  "integration.webhook": "Webhook",
-  "integration.sso": "Single Sign-On",
-  "agent.lifecycle": "Backup, update, dan rollback otomatis",
+  "face.advanced": "Pengenalan wajah dan anti-spoof saat absen",
+  "payroll.advanced": "Payroll lanjutan dan simulasi kebijakan",
+  "discipline.workflow": "Alur disiplin (SP, pembinaan, PHK) dengan bukti keputusan",
+  "organization.multi_branch": "Multi-cabang tanpa batas",
+  "analytics.advanced": "Analitik lintas cabang",
+  "automation.advanced": "Otomatisasi dan penjadwal lanjutan",
+  "integration.api": "REST API dan asisten AI lewat MCP (Claude, Cursor)",
+  "integration.webhook": "Webhook bertanda tangan",
+  "integration.sso": "Login SSO perusahaan",
+  "agent.lifecycle": "Backup terjadwal otomatis",
 };
+
+/**
+ * Keys kept for license compatibility but not shown as a separate Pro feature:
+ * update and rollback now run from the installer manager on every edition.
+ */
+export const HIDDEN_FEATURE_LABELS: ReadonlySet<ProFeature> = new Set(["agent.lifecycle"]);
 
 export interface EntitlementSnapshot {
   plan: "community" | "pro" | "enterprise";

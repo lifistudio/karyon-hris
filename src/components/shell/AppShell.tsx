@@ -5,22 +5,14 @@ import { BrandLogo } from "@/components/brand/BrandLogo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import {
-  BookOpen,
-  ChevronDown,
-  KeyRound,
-  LogOut,
-  Menu,
-  Moon,
-  PanelLeftClose,
-  Sun,
-  UserRound,
-} from "lucide-react";
+import { ArrowUpCircle, BookOpen, ChevronDown, KeyRound, LogOut, Menu, Moon, PanelLeftClose, Sun, UserRound } from "@/components/icons";
 import { useTheme } from "@/components/ThemeProvider";
 import { NotificationBell } from "./NotificationBell";
 import { cn, ICON_STROKE, type IconType } from "@/components/ui";
-import { TIMEZONE } from "@/lib/time";
+import { timezoneName, timezoneAbbr } from "@/lib/time";
+import { motion } from "framer-motion";
 import { useLicense } from "@/lib/use-license";
+import { useNotices } from "@/lib/use-notices";
 
 export interface NavItem {
   name: string;
@@ -53,16 +45,16 @@ function useWibNow() {
 }
 
 function fmt(now: Date | null, opts: Intl.DateTimeFormatOptions, fallback: string) {
-  return now ? new Intl.DateTimeFormat("id-ID", { timeZone: TIMEZONE, ...opts }).format(now) : fallback;
+  return now ? new Intl.DateTimeFormat("id-ID", { timeZone: timezoneName(), ...opts }).format(now) : fallback;
 }
 
 function ClockPanel() {
   const now = useWibNow();
   return (
-    <div className="rounded-[var(--radius-control)] bg-surface-2 border border-line px-3.5 py-3">
+    <div className="rounded-2xl bg-background-inner-default shadow-card px-3.5 py-3">
       <p className="text-title-sm font-semibold text-heading tabular-nums tracking-[-0.02em] leading-none">
         {fmt(now, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }, "--:--:--")}
-        <span className="text-label font-medium text-subtle ml-1.5 tracking-normal">WIB</span>
+        <span className="text-label font-medium text-subtle ml-1.5 tracking-normal">{timezoneAbbr()}</span>
       </p>
       <p className="text-label text-muted mt-1.5 truncate">
         {fmt(now, { weekday: "long", day: "numeric", month: "long" }, "Memuat…")}
@@ -78,7 +70,7 @@ function ClockInline() {
       <span className="text-body-sm font-semibold text-foreground tabular-nums">
         {fmt(now, { hour: "2-digit", minute: "2-digit", hour12: false }, "--:--")}
       </span>
-      <span className="text-caption font-medium text-subtle">WIB</span>
+      <span className="text-caption font-medium text-subtle">{timezoneAbbr()}</span>
     </span>
   );
 }
@@ -205,6 +197,23 @@ function MenuLink({
  * Tells the superadmin, on every admin page, that Pro features are paused
  * because the license lapsed — the app keeps working as Community meanwhile.
  */
+/** "New version" chip for the superadmin; links to the one-click update panel. */
+function UpdateChip({ enabled }: { enabled: boolean }) {
+  const notices = useNotices(enabled);
+  const update = notices?.update;
+  if (!update?.available || !update.latest) return null;
+  return (
+    <Link
+      href="/admin/license#update"
+      className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-primary-soft text-primary text-body-sm font-semibold hover:brightness-95 transition"
+      title={`Versi ${update.latest} tersedia (sekarang ${update.current})`}
+    >
+      <ArrowUpCircle className="w-4 h-4" strokeWidth={ICON_STROKE} aria-hidden />
+      Versi {update.latest}
+    </Link>
+  );
+}
+
 function LicenseBanner() {
   const { license } = useLicense();
   if (!license || license.edition !== "pro" || !["expired", "grace"].includes(license.status)) return null;
@@ -283,10 +292,10 @@ export function AppShell({
   }, [visibleSections, pathname, brand.title]);
 
   const nav = (
-    <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
+    <nav className="flex-1 overflow-y-auto px-0.5 py-4 space-y-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {visibleSections.map((section) => (
         <div key={section.label}>
-          <p className="eyebrow px-3 mb-2">{section.label}</p>
+          <p className="px-2 mb-1 text-label font-semibold text-subtle normal-case tracking-normal">{section.label}</p>
           <ul className="space-y-0.5">
             {section.items.map((item) => {
               const active = pathname === item.href;
@@ -297,25 +306,24 @@ export function AppShell({
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "group relative flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-control)] text-body-sm transition-[color,background-color,transform] duration-200 ease-out",
-                      active
-                        ? "bg-primary-soft text-primary font-semibold"
-                        : "text-muted hover:text-foreground hover:bg-surface-2 hover:translate-x-0.5 font-medium"
+                      "group relative flex items-center gap-2 px-2 py-2 rounded-[10px] text-body font-medium transition-colors duration-200",
+                      active ? "text-white" : "text-muted hover:text-foreground hover:bg-surface-hover"
                     )}
                   >
-                    {/* A short rule at the left edge marks the active item even
-                        for viewers who cannot distinguish the tint. */}
+                    {/* The selected pill slides between items (BoardUI's gradient nav pill). */}
                     {active && (
-                      <span
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary"
+                      <motion.span
+                        layoutId="nav-active"
+                        className="absolute inset-0 rounded-[10px] bg-linear-to-b from-accent-500 to-accent-600 shadow-nav-selected"
+                        transition={{ type: "spring", stiffness: 520, damping: 40 }}
                         aria-hidden
                       />
                     )}
                     <Icon
-                      className={cn("w-[18px] h-[18px] shrink-0", active ? "text-primary" : "text-subtle")}
+                      className={cn("relative w-5 h-5 shrink-0", active ? "text-white" : "text-subtle group-hover:text-foreground")}
                       strokeWidth={ICON_STROKE}
                     />
-                    <span className="truncate">{item.name}</span>
+                    <span className="relative truncate">{item.name}</span>
                   </Link>
                 </li>
               );
@@ -327,29 +335,25 @@ export function AppShell({
   );
 
   const brandBlock = (
-    <Link href={brandHref} className="flex items-center gap-2.5 min-w-0" aria-label={`${brand.title} — ${brand.subtitle}`}>
-      <BrandLogo height={30} />
-      <span className="min-w-0 border-l border-line pl-2.5">
-        <span className="block font-semibold text-body-sm text-heading truncate leading-tight">
-          {brand.title}
-        </span>
-        <span className="block text-caption text-subtle truncate leading-tight mt-0.5">
-          {brand.subtitle}
-        </span>
-      </span>
+    <Link href={brandHref} className="block min-w-0 rounded-xl px-1 py-0.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]" aria-label={`${brand.title} — ${brand.subtitle}`}>
+      {/* Logo alone carries the brand; the area name sits quietly underneath. */}
+      <BrandLogo height={26} />
+      <span className="mt-1.5 block truncate text-body-sm text-subtle">{brand.subtitle}</span>
     </Link>
   );
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
       {/* Desktop rail */}
-      <aside className="w-[248px] shrink-0 border-r border-line bg-surface hidden lg:flex flex-col">
-        <div className="px-4 h-16 flex items-center border-b border-line">{brandBlock}</div>
-        {nav}
-        <div className="p-3 border-t border-line">
-          <ClockPanel />
-        </div>
-      </aside>
+      <div className="hidden lg:block w-[272px] shrink-0">
+        <aside className="sticky top-3 m-3 mr-0 h-[calc(100vh-24px)] flex flex-col rounded-3xl border border-border-button-white bg-background-secondary-default p-3 shadow-sidebar">
+          <div className="px-1 pt-1 pb-2">{brandBlock}</div>
+          {nav}
+          <div className="pt-2">
+            <ClockPanel />
+          </div>
+        </aside>
+      </div>
 
       {/* Mobile drawer */}
       {mobileOpen && (
@@ -359,10 +363,10 @@ export function AppShell({
           onClick={() => setMobileOpen(false)}
         >
           <aside
-            className="w-[280px] max-w-[85vw] h-full bg-surface border-r border-line flex flex-col animate-fade-up"
+            className="m-2 w-[280px] max-w-[85vw] h-[calc(100dvh-16px)] rounded-3xl border border-border-button-white bg-background-secondary-default p-3 shadow-sidebar flex flex-col animate-fade-up"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-4 h-16 flex items-center justify-between gap-2 border-b border-line">
+            <div className="px-1 pt-1 pb-2 flex items-center justify-between gap-2">
               {brandBlock}
               <button
                 onClick={() => setMobileOpen(false)}
@@ -373,7 +377,7 @@ export function AppShell({
               </button>
             </div>
             {nav}
-            <div className="p-3 border-t border-line">
+            <div className="pt-2">
               <ClockPanel />
             </div>
           </aside>
@@ -382,7 +386,7 @@ export function AppShell({
 
       {/* Main column */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 shrink-0 border-b border-line bg-surface/85 backdrop-blur-md flex items-center justify-between gap-3 px-4 md:px-6 sticky top-0 z-40">
+        <header className="h-16 shrink-0 bg-background/85 backdrop-blur-xl flex items-center justify-between gap-3 px-4 md:px-6 lg:px-8 sticky top-0 z-40">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setMobileOpen(true)}
@@ -395,6 +399,7 @@ export function AppShell({
           </div>
 
           <div className="flex items-center gap-1.5">
+            <UpdateChip enabled={role === "SUPERADMIN"} />
             <ClockInline />
             <NotificationBell />
             <ThemeToggle />
@@ -403,8 +408,8 @@ export function AppShell({
           </div>
         </header>
 
-        <main id="main-content" className="flex-1 p-5 md:p-7 lg:p-8 min-w-0">
-          <div key={pathname} className="mx-auto w-full max-w-[1400px] animate-fade-up">
+        <main id="main-content" className="flex-1 px-4 pb-8 pt-2 md:px-6 lg:px-8 min-w-0">
+          <div key={pathname} className="mx-auto w-full max-w-[100rem] animate-fade-up">
             {role === "SUPERADMIN" && pathname !== "/admin/license" && <LicenseBanner />}
             {children}
           </div>

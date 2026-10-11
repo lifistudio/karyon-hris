@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Check } from "lucide-react";
+import { Check } from "@/components/icons";
 import { Field, Input, Textarea, cn } from "@/components/ui";
 import { Combobox } from "@/components/ui/Combobox";
 import { DatePicker } from "@/components/ui/DatePicker";

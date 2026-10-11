@@ -2,17 +2,16 @@
 
 import React, { useState, useEffect } from "react";
 import { Pagination } from "@/components/ui/Pagination";
-import { 
-  Package, Search, Plus, Edit, Loader2, ClipboardCheck, ArrowUpRight, 
-  Trash2, ShieldAlert, X, UserPlus, CheckCircle, RefreshCcw, Camera, ScanLine 
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import SearchSelect from "@/components/SearchSelect";
+import { Package, Search, Plus, Edit, Trash2, UserPlus, RefreshCcw, Camera, ScanLine, Tag } from "@/components/icons";
 import { CameraScanner } from "@/components/inventory/CameraScanner";
 import { generateCode39Svg } from "@/lib/barcode";
-import { Select } from "@/components/ui";
-import { Portal } from "@/components/ui/Floating";
+import { Alert, Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, SkeletonList, TableWrap, Td, Textarea, Th, Tr, cn } from "@/components/ui";
 import { confirmDialog } from "@/components/ui/ConfirmHost";
+import { INVENTORY_CATEGORY_LABELS, INVENTORY_CONDITION_LABELS } from "@/lib/hr/labels";
+
+/** Built-in keys keep their Indonesian label; custom categories are stored as typed. */
+const categoryLabel = (key: string) => INVENTORY_CATEGORY_LABELS[key] ?? key;
+
 interface Employee {
   _id: string;
   name: string;
@@ -86,6 +85,10 @@ export default function InventoryAdminPage() {
   const [successMsg, setSuccessMsg] = useState("");
 
   const [categories, setCategories] = useState<string[]>(["laptop", "phone", "vehicle", "other"]);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [categoryDraft, setCategoryDraft] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState("");
+  const [categoryError, setCategoryError] = useState("");
 
   const fetchCategories = async () => {
     try {
@@ -159,7 +162,7 @@ export default function InventoryAdminPage() {
       setSelectedAsset(null);
       setFormCode("");
       setFormName("");
-      setFormCategory("laptop");
+      setFormCategory(categories[0] ?? "other");
       setFormCondition("good");
     }
     setIsFormOpen(true);
@@ -350,554 +353,424 @@ export default function InventoryAdminPage() {
     }
   };
 
-  const filteredAssets = assets;
+  const conditionTone = (c: string) => (c === "good" ? "success" : c === "damaged" ? "warning" : "danger") as "success" | "warning" | "danger";
+
+  const openCategories = () => {
+    setCategoryDraft(categories);
+    setNewCategory("");
+    setCategoryError("");
+    setIsCategoryOpen(true);
+  };
+
+  const addDraftCategory = () => {
+    const value = newCategory.trim();
+    if (!value) return;
+    if (categoryDraft.some((c) => c.toLowerCase() === value.toLowerCase() || categoryLabel(c).toLowerCase() === value.toLowerCase())) {
+      setCategoryError(`Kategori "${value}" sudah ada`);
+      return;
+    }
+    setCategoryDraft([...categoryDraft, value.slice(0, 40)]);
+    setNewCategory("");
+    setCategoryError("");
+  };
+
+  const saveCategories = async () => {
+    setSubmitting(true);
+    setCategoryError("");
+    try {
+      const res = await fetch("/api/v1/settings/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ categories: categoryDraft }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCategories(data.data);
+        setIsCategoryOpen(false);
+      } else {
+        setCategoryError(data.message || "Kategori gagal disimpan");
+      }
+    } catch {
+      setCategoryError("Koneksi terputus. Coba lagi.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const closeAudit = () => {
+    setIsAuditOpen(false);
+    setAuditAsset(null);
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Title Header */}
-      <div className="flex items-center justify-between border-b border-line pb-6">
-        <div>
-          <h1 className="text-title font-semibold text-foreground flex items-center gap-2">
-            <Package className="w-5 h-5 text-foreground" />
-            Manajemen Inventaris & Aset GA
-          </h1>
-          <p className="text-label text-muted mt-1">
-            Kelola master inventaris kantor, serah terima BAST digital, dan pemantauan kepemilikan barang karyawan.
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => {
-              setScanInputCode("");
-              setScanError("");
-              setAuditAsset(null);
-              setAuditNotes("");
-              setIsAuditOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-success text-label font-semibold text-success-foreground cursor-pointer hover:brightness-110 transition-all border border-success"
-          >
-            <RefreshCcw className="w-4 h-4" />
-            Pindai & Audit Fisik
-          </button>
-          <button
-            onClick={() => handleOpenForm(null)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-label font-semibold text-primary-foreground cursor-pointer hover:bg-primary-hover transition-all border border-transparent"
-          >
-            <Plus className="w-4 h-4" />
-            Tambah Aset Baru
-          </button>
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title="Inventaris & aset"
+        description="Kelola daftar aset kantor, serah terima BAST digital, dan pemegang setiap barang."
+        actions={
+          <>
+            <Button variant="secondary" icon={Tag} onClick={openCategories}>Kategori</Button>
+            <Button
+              variant="secondary"
+              icon={ScanLine}
+              onClick={() => {
+                setScanInputCode("");
+                setScanError("");
+                setAuditAsset(null);
+                setAuditNotes("");
+                setIsAuditOpen(true);
+              }}
+            >
+              Pindai & audit
+            </Button>
+            <Button icon={Plus} onClick={() => handleOpenForm(null)}>Tambah aset</Button>
+          </>
+        }
+      />
 
-      {/* Filter / Search Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-surface border border-line p-4 rounded-xl">
-        <div>
-          <label className="text-caption font-semibold text-foreground uppercase tracking-wider block mb-1.5">Cari Kode / Nama</label>
+      <Card className="overflow-hidden">
+        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_16rem]">
           <div className="relative">
-            <input
-              type="text"
+            <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" aria-hidden />
+            <Input
+              aria-label="Cari kode atau nama aset"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setPage(1);
               }}
-              placeholder="Cari MacBook, AST-LAP-001..."
-              className="w-full pl-9 pr-4 py-2 rounded-lg bg-surface-2 border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary dark:focus:ring-white text-label placeholder:text-subtle"
+              placeholder="Cari kode atau nama aset…"
+              className="ps-10"
             />
-            <Search className="w-3.5 h-3.5 text-subtle absolute left-3 top-3" />
           </div>
-        </div>
-        <div>
-          <label className="text-caption font-semibold text-foreground uppercase tracking-wider block mb-1.5">Saring Kategori</label>
           <Select
+            aria-label="Saring kategori"
             value={categoryFilter}
             onChange={(e) => {
               setCategoryFilter(e.target.value);
               setPage(1);
             }}
-            className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary dark:focus:ring-white text-label"
           >
-            <option value="">Semua Kategori</option>
-            {categories.map(cat => (
-              <option key={cat} value={cat} className="capitalize">{cat}</option>
+            <option value="">Semua kategori</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>{categoryLabel(cat)}</option>
             ))}
           </Select>
         </div>
-      </div>
 
-      {/* Main List Table */}
-      {loading ? (
-        <div className="h-64 flex items-center justify-center text-foreground">
-          <Loader2 className="w-8 h-8 animate-spin text-foreground" />
-        </div>
-      ) : filteredAssets.length === 0 ? (
-        <div className="h-48 border border-dashed border-line rounded-xl flex flex-col items-center justify-center text-center p-6 text-muted">
-          <Package className="w-8 h-8 mb-2 opacity-50" />
-          <p className="text-body font-medium">Belum ada aset terdaftar</p>
-        </div>
-      ) : (
-        <div className="bg-surface border border-line rounded-xl overflow-hidden">
-          <table className="w-full text-left text-label border-collapse">
+        {loading ? (
+          <div className="p-4"><SkeletonList rows={5} /></div>
+        ) : assets.length === 0 ? (
+          <EmptyState
+            icon={Package}
+            title={searchQuery || categoryFilter ? "Tidak ada aset yang cocok" : "Belum ada aset terdaftar"}
+            description={searchQuery || categoryFilter ? "Ubah kata kunci atau kategori pencarian." : "Tambahkan aset pertama untuk mulai mencatat serah terima."}
+            action={!searchQuery && !categoryFilter ? <Button icon={Plus} onClick={() => handleOpenForm(null)}>Tambah aset</Button> : undefined}
+          />
+        ) : (
+          <TableWrap>
             <thead>
-              <tr className="border-b border-line bg-surface-2 dark:bg-surface-2 text-foreground">
-                <th className="p-4 font-semibold">Kode Aset</th>
-                <th className="p-4 font-semibold">Nama Barang</th>
-                <th className="p-4 font-semibold">Kategori</th>
-                <th className="p-4 font-semibold">Kondisi</th>
-                <th className="p-4 font-semibold">Pemegang Aktif</th>
-                <th className="p-4 font-semibold text-right">Aksi</th>
+              <tr>
+                <Th>Kode aset</Th>
+                <Th>Nama barang</Th>
+                <Th>Kategori</Th>
+                <Th>Kondisi</Th>
+                <Th>Pemegang</Th>
+                <Th className="text-right">Aksi</Th>
               </tr>
             </thead>
             <tbody>
-              {filteredAssets.map((asset) => {
+              {assets.map((asset) => {
                 const isAssigned = asset.assignment && (asset.assignment.status === "active" || asset.assignment.status === "pending_handover");
                 return (
-                  <tr key={asset._id} className="border-b border-line hover:bg-surface-2 transition-all">
-                    <td className="p-4 font-mono font-semibold text-foreground">
-                      <div>{asset.code}</div>
-                      <div 
-                        className="h-5 w-28 mt-1 opacity-80"
-                        dangerouslySetInnerHTML={{ __html: generateCode39Svg(asset.code).svg }}
-                      />
-                    </td>
-                    <td className="p-4 font-semibold text-foreground">{asset.name}</td>
-                    <td className="p-4 capitalize text-foreground">{asset.category}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-0.5 rounded-sm font-semibold border ${
-                        asset.condition === "good"
-                          ? "bg-success-soft text-success dark:text-success border-success/20"
-                          : asset.condition === "damaged"
-                          ? "bg-warning-soft text-warning dark:text-warning border-warning/20"
-                          : "bg-danger-soft text-danger dark:text-danger border-danger/20"
-                      }`}>
-                        {asset.condition === "good" ? "Baik" : asset.condition === "damaged" ? "Rusak" : "Hilang"}
-                      </span>
-                    </td>
-                    <td className="p-4">
+                  <Tr key={asset._id}>
+                    <Td>
+                      <div className="font-mono text-body-sm font-semibold text-heading">{asset.code}</div>
+                      <div className="mt-1 h-5 w-28 opacity-80 dark:invert" dangerouslySetInnerHTML={{ __html: generateCode39Svg(asset.code).svg }} />
+                    </Td>
+                    <Td className="font-medium text-heading">{asset.name}</Td>
+                    <Td className="text-muted">{categoryLabel(asset.category)}</Td>
+                    <Td><Badge tone={conditionTone(asset.condition)} dot>{INVENTORY_CONDITION_LABELS[asset.condition] ?? asset.condition}</Badge></Td>
+                    <Td>
                       {isAssigned ? (
                         <div className="space-y-1">
-                          <div className="font-semibold text-foreground">
-                            {asset.assignment?.employeeId?.name || "Karyawan"}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1.5 text-caption uppercase font-semibold text-muted">
-                            <span>{asset.assignment?.employeeId?.NIK}</span>
-                            <span>&bull;</span>
-                            <span className={`px-1.5 py-0.2 rounded border ${
-                              asset.assignment?.status === "active" 
-                                ? "bg-success-soft text-success dark:text-success border-success/20" 
-                                : "bg-warning-soft text-warning dark:text-warning border-warning/20 animate-pulse"
-                            }`}>
+                          <div className="font-medium text-heading">{asset.assignment?.employeeId?.name || "Karyawan"}</div>
+                          <div className="flex flex-wrap items-center gap-2 text-body-sm text-muted">
+                            <Badge tone={asset.assignment?.status === "active" ? "success" : "warning"}>
                               {asset.assignment?.status === "active" ? "Aktif" : "Menunggu BAST"}
-                            </span>
+                            </Badge>
                             {asset.assignment?.signatureUrl && (
-                              <button 
+                              <button
+                                type="button"
                                 onClick={() => setSignatureModalUrl(asset.assignment?.signatureUrl || null)}
-                                className="text-foreground underline hover:opacity-80 ml-1.5 cursor-pointer"
+                                className="cursor-pointer text-primary hover:underline"
                               >
-                                Lihat TTD
+                                Lihat tanda tangan
                               </button>
                             )}
                           </div>
                         </div>
                       ) : (
-                        <span className="text-subtle font-medium">Belum Ditugaskan</span>
+                        <span className="text-subtle">Belum ditugaskan</span>
                       )}
-                    </td>
-                    <td className="p-4 text-right flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => handleOpenForm(asset)}
-                        className="p-1.5 rounded hover:bg-surface-2 text-muted hover:text-foreground transition-all cursor-pointer"
-                        title="Edit Info Aset"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleOpenAssign(asset)}
-                        disabled={asset.condition === "lost"}
-                        className="p-1.5 rounded hover:bg-surface-2 text-muted hover:text-foreground transition-all cursor-pointer disabled:opacity-30"
-                        title="Tugaskan Aset"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                      </button>
-                      {isAssigned && (
-                        <button
-                          onClick={() => handleReturnAsset(asset)}
-                          className="p-1.5 rounded hover:bg-surface-2 text-danger hover:text-danger transition-all cursor-pointer"
-                          title="Kembalikan Aset (Return)"
-                        >
-                          <RefreshCcw className="w-4 h-4" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
+                    </Td>
+                    <Td>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" aria-label={`Ubah ${asset.name}`} title="Ubah aset" icon={Edit} onClick={() => handleOpenForm(asset)} />
+                        <Button variant="ghost" size="icon" aria-label={`Tugaskan ${asset.name}`} title="Tugaskan aset" icon={UserPlus} disabled={asset.condition === "lost"} onClick={() => handleOpenAssign(asset)} />
+                        {isAssigned && (
+                          <Button variant="ghost" size="icon" aria-label={`Terima pengembalian ${asset.name}`} title="Terima pengembalian" icon={RefreshCcw} onClick={() => handleReturnAsset(asset)} />
+                        )}
+                      </div>
+                    </Td>
+                  </Tr>
                 );
               })}
             </tbody>
-          </table>
+          </TableWrap>
+        )}
+      </Card>
+
+      {total > 0 && (
+        <div className="mt-4">
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(total / limit))}
+            total={total}
+            limit={limit}
+            onPage={setPage}
+            onLimit={(l) => {
+              setLimit(l);
+              setPage(1);
+            }}
+          />
         </div>
       )}
 
-      {total > 0 && (
-        <Pagination
-          page={page}
-          totalPages={Math.max(1, Math.ceil(total / limit))}
-          total={total}
-          limit={limit}
-          onPage={setPage}
-          onLimit={(l) => {
-            setLimit(l);
-            setPage(1);
-          }}
-        />
-      )}
-
-      {/* Asset Form Drawer Modal */}
-      {isFormOpen && (
-        <Portal><div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-end bg-overlay backdrop-blur-xs">
-          <div className="w-full max-w-lg h-full bg-surface border-l border-line relative z-10 shadow-[var(--shadow-pop)] p-6 flex flex-col justify-between overflow-y-auto">
-            <div>
-              <div className="flex items-center justify-between pb-4 border-b border-line mb-6">
-                <h3 className="text-body font-semibold text-foreground uppercase">
-                  {selectedAsset ? "Edit Detail Inventaris" : "Tambah Inventaris Aset Baru"}
-                </h3>
-                <button
-                  onClick={() => setIsFormOpen(false)}
-                  className="p-1 rounded bg-surface-2 border border-line text-muted hover:text-foreground cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {errorMsg && (
-                <div className="mb-4 p-3 rounded bg-danger-soft border border-danger/20 text-danger text-label flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              {successMsg && (
-                <div className="mb-4 p-3 rounded bg-success-soft border border-success/20 text-success text-label flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4" />
-                  <span>{successMsg}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleSaveAsset} className="space-y-4 text-label">
-                <div>
-                  <label className="block text-caption font-semibold text-foreground uppercase tracking-wider mb-1.5">Kode Aset (Unique)</label>
-                  <input
-                    type="text"
-                    required
-                    value={formCode}
-                    onChange={(e) => setFormCode(e.target.value)}
-                    disabled={!!selectedAsset}
-                    placeholder="AST-LAP-001, AST-MBL-012"
-                    className="w-full px-3 py-2 rounded-lg bg-surface-2 dark:bg-surface border border-line dark:border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary dark:focus:ring-white text-label disabled:opacity-50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-caption font-semibold text-foreground uppercase tracking-wider mb-1.5">Nama Barang / Spesifikasi</label>
-                  <input
-                    type="text"
-                    required
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder="MacBook Pro M2 16GB, Honda Vario B 1234 XYZ"
-                    className="w-full px-3 py-2 rounded-lg bg-surface-2 dark:bg-surface border border-line dark:border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary dark:focus:ring-white text-label"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex-1 w-full">
-                    <SearchSelect
-                      label="Kategori Aset"
-                      value={formCategory}
-                      onChange={setFormCategory}
-                      options={categories.map(cat => ({ label: cat.toUpperCase(), value: cat }))}
-                      placeholder="Pilih kategori..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-caption font-semibold text-foreground uppercase tracking-wider mb-1.5">Kondisi Aset</label>
-                    <Select
-                      value={formCondition}
-                      onChange={(e) => setFormCondition(e.target.value as "good" | "damaged" | "lost")}
-                      className="w-full px-3 py-2 rounded-lg bg-surface-2 dark:bg-surface border border-line dark:border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary dark:focus:ring-white text-label"
-                    >
-                      <option value="good">Baik</option>
-                      <option value="damaged">Rusak</option>
-                      <option value="lost">Hilang</option>
-                    </Select>
-                  </div>
-                </div>
-              </form>
-            </div>
-
-            <div className="border-t border-line pt-4 mt-6 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setIsFormOpen(false)}
-                className="px-4 py-2 rounded-lg border border-line text-label font-semibold text-foreground hover:bg-surface-2 transition-all"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveAsset}
-                disabled={submitting}
-                className="px-4 py-2 rounded-lg bg-primary text-label font-semibold text-primary-foreground border border-transparent hover:bg-primary-hover transition-all flex items-center gap-1.5 disabled:opacity-50"
-              >
-                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {selectedAsset ? "Simpan Perubahan" : "Tambah Aset"}
-              </button>
-            </div>
+      {/* Asset form */}
+      <Modal
+        open={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        title={selectedAsset ? "Ubah aset" : "Tambah aset"}
+        description="Kode aset dicetak sebagai barcode dan dipakai saat audit fisik."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsFormOpen(false)}>Batal</Button>
+            <Button type="submit" form="asset-form" loading={submitting}>{selectedAsset ? "Simpan perubahan" : "Tambah aset"}</Button>
+          </>
+        }
+      >
+        <form id="asset-form" onSubmit={handleSaveAsset} className="space-y-4">
+          {errorMsg && <Alert tone="danger">{errorMsg}</Alert>}
+          {successMsg && <Alert tone="success">{successMsg}</Alert>}
+          <Field label="Kode aset" required hint={selectedAsset ? "Kode tidak dapat diubah setelah aset dibuat." : "Harus unik, misalnya AST-LAP-001."}>
+            <Input required value={formCode} onChange={(e) => setFormCode(e.target.value)} disabled={!!selectedAsset} placeholder="AST-LAP-001" className="font-mono" />
+          </Field>
+          <Field label="Nama barang atau spesifikasi" required>
+            <Input required value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="MacBook Pro M2 16 GB" />
+          </Field>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Kategori" required>
+              <Select aria-label="Kategori" required value={formCategory} onChange={(e) => setFormCategory(e.target.value)}>
+                {categories.map((cat) => <option key={cat} value={cat}>{categoryLabel(cat)}</option>)}
+              </Select>
+            </Field>
+            <Field label="Kondisi" required>
+              <Select aria-label="Kondisi" required value={formCondition} onChange={(e) => setFormCondition(e.target.value as "good" | "damaged" | "lost")}>
+                <option value="good">Baik</option>
+                <option value="damaged">Rusak</option>
+                <option value="lost">Hilang</option>
+              </Select>
+            </Field>
           </div>
-        </div></Portal>
-      )}
+          <button type="button" onClick={openCategories} className="cursor-pointer text-body-sm font-medium text-primary hover:underline">
+            Kategori belum ada? Kelola kategori
+          </button>
+        </form>
+      </Modal>
 
-      {/* Assign Asset Modal */}
-      {isAssignOpen && selectedAsset && (
-        <Portal><div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-overlay backdrop-blur-xs p-4">
-          <div className="w-full max-w-md bg-surface border border-line rounded-xl shadow-[var(--shadow-pop)] p-6 flex flex-col">
-            <div className="flex justify-between items-center pb-4 border-b border-line">
-              <h3 className="text-body font-semibold text-foreground uppercase">Tugaskan Aset Inventaris</h3>
-              <button
-                onClick={() => setIsAssignOpen(false)}
-                className="p-1 rounded bg-surface-2 border border-line text-muted hover:text-foreground transition-all cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="py-4 space-y-4 text-label">
-              <div className="p-3 bg-surface-2 rounded-lg border border-line space-y-1">
-                <div className="font-semibold text-foreground">Aset: {selectedAsset.name}</div>
-                <div className="text-label text-muted">Kode: {selectedAsset.code} &bull; Kategori: {selectedAsset.category}</div>
-              </div>
-
-              {errorMsg && (
-                <div className="p-3 rounded bg-danger-soft border border-danger/20 text-danger text-label flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              {successMsg && (
-                <div className="p-3 rounded bg-success-soft border border-success/20 text-success text-label flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4" />
-                  <span>{successMsg}</span>
-                </div>
-              )}
-
-              <SearchSelect
-                label="Pilih Karyawan Penerima"
-                value={assignEmployeeId}
-                onChange={setAssignEmployeeId}
-                options={employees.map(emp => ({
-                  label: `${emp.name} (${emp.NIK})`,
-                  value: emp._id
-                }))}
-                placeholder="Pilih karyawan..."
-              />
-            </div>
-
-            <div className="border-t border-line pt-4 flex justify-end gap-3">
-              <button
-                onClick={() => setIsAssignOpen(false)}
-                className="px-4 py-2 rounded-lg border border-line text-label font-semibold text-foreground hover:bg-surface-2 transition-all"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleAssignAsset}
-                disabled={submitting || !assignEmployeeId}
-                className="px-4 py-2 rounded-lg bg-primary text-label font-semibold text-primary-foreground border border-transparent hover:bg-primary-hover transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
-              >
-                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                Tugaskan Aset
-              </button>
-            </div>
-          </div>
-        </div></Portal>
-      )}
-
-      {/* Signature Viewer Modal */}
-      {signatureModalUrl && (
-        <Portal><div className="fixed inset-0 z-55 flex items-center justify-center bg-overlay backdrop-blur-xs p-4">
-          <div className="w-full max-w-sm bg-surface border border-line rounded-xl shadow-[var(--shadow-pop)] p-6 flex flex-col">
-            <div className="flex justify-between items-center pb-4 border-b border-line">
-              <h3 className="text-label font-semibold text-foreground uppercase">Tanda Tangan Serah Terima (BAST)</h3>
-              <button
-                onClick={() => setSignatureModalUrl(null)}
-                className="p-1 rounded bg-surface-2 border border-line text-muted hover:text-foreground cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="py-6 flex justify-center">
-              <div className="border border-line rounded-lg bg-surface-2 p-2 overflow-hidden flex items-center justify-center">
-                <img 
-                  src={signatureModalUrl} 
-                  alt="Tanda Tangan Digital BAST" 
-                  className="max-h-48 object-contain scale-[1.05] dark:invert" 
+      {/* Category manager */}
+      <Modal
+        open={isCategoryOpen}
+        onClose={() => setIsCategoryOpen(false)}
+        title="Kategori aset"
+        description="Tambah, ganti nama tampilan, atau hapus kategori. Aset lama tetap menyimpan kategorinya."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsCategoryOpen(false)}>Batal</Button>
+            <Button onClick={saveCategories} loading={submitting} disabled={!categoryDraft.length}>Simpan kategori</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {categoryError && <Alert tone="danger">{categoryError}</Alert>}
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              addDraftCategory();
+            }}
+          >
+            <Input aria-label="Nama kategori baru" value={newCategory} maxLength={40} onChange={(e) => setNewCategory(e.target.value)} placeholder="Contoh: Furnitur" />
+            <Button type="submit" variant="secondary" icon={Plus} disabled={!newCategory.trim()}>Tambah</Button>
+          </form>
+          <ul className="divide-y divide-line rounded-2xl bg-background-secondary-default px-4">
+            {categoryDraft.map((cat) => (
+              <li key={cat} className="flex items-center justify-between gap-3 py-2.5">
+                <span className="min-w-0 truncate text-body text-heading">{categoryLabel(cat)}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  icon={Trash2}
+                  aria-label={`Hapus kategori ${categoryLabel(cat)}`}
+                  disabled={categoryDraft.length <= 1}
+                  onClick={() => setCategoryDraft(categoryDraft.filter((c) => c !== cat))}
                 />
-              </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Modal>
+
+      {/* Assign */}
+      <Modal
+        open={isAssignOpen && !!selectedAsset}
+        onClose={() => setIsAssignOpen(false)}
+        title="Tugaskan aset"
+        description="Karyawan menerima permintaan tanda tangan BAST di portal."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsAssignOpen(false)}>Batal</Button>
+            <Button onClick={handleAssignAsset} loading={submitting} disabled={!assignEmployeeId}>Tugaskan</Button>
+          </>
+        }
+      >
+        {selectedAsset && (
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-background-secondary-default p-4">
+              <p className="text-body font-semibold text-heading">{selectedAsset.name}</p>
+              <p className="mt-0.5 text-body-sm text-muted"><span className="font-mono">{selectedAsset.code}</span> · {categoryLabel(selectedAsset.category)}</p>
             </div>
-            <button
-              onClick={() => setSignatureModalUrl(null)}
-              className="w-full py-2 rounded-lg border border-line text-label font-semibold text-foreground hover:bg-surface-2 cursor-pointer transition-all"
-            >
-              Tutup
-            </button>
+            {errorMsg && <Alert tone="danger">{errorMsg}</Alert>}
+            {successMsg && <Alert tone="success">{successMsg}</Alert>}
+            <Field label="Karyawan penerima" required>
+              <Select aria-label="Karyawan penerima" value={assignEmployeeId} onChange={(e) => setAssignEmployeeId(e.target.value)} placeholder="Pilih karyawan…">
+                <option value="">Pilih karyawan…</option>
+                {employees.map((emp) => <option key={emp._id} value={emp._id}>{`${emp.name} (${emp.NIK})`}</option>)}
+              </Select>
+            </Field>
           </div>
-        </div></Portal>
-      )}
-      {/* Monthly Physical Audit Scan Modal */}
-      {isAuditOpen && (
-        <Portal><div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-overlay backdrop-blur-xs p-4 animate-fade-in">
-          <div className="w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto bg-surface border border-line rounded-xl shadow-[var(--shadow-pop)] p-6 flex flex-col gap-4">
-            <div className="flex justify-between items-center pb-4 border-b border-line">
-              <h3 className="text-body font-semibold text-foreground">Audit fisik bulanan inventaris</h3>
+        )}
+      </Modal>
+
+      {/* Signature */}
+      <Modal
+        open={!!signatureModalUrl}
+        onClose={() => setSignatureModalUrl(null)}
+        title="Tanda tangan serah terima"
+        size="sm"
+        footer={<Button variant="secondary" onClick={() => setSignatureModalUrl(null)}>Tutup</Button>}
+      >
+        {signatureModalUrl && (
+          <div className="grid place-items-center rounded-2xl bg-background-secondary-default p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element -- signature data URL */}
+            <img src={signatureModalUrl} alt="Tanda tangan BAST" className="max-h-48 object-contain dark:invert" />
+          </div>
+        )}
+      </Modal>
+
+      {/* Physical audit */}
+      <Modal
+        open={isAuditOpen}
+        onClose={closeAudit}
+        title="Audit fisik inventaris"
+        description="Pindai label barcode atau ketik kode aset, lalu catat kondisinya."
+        footer={
+          auditAsset ? (
+            <>
+              <Button variant="secondary" onClick={() => setAuditAsset(null)}>Pindai ulang</Button>
+              <Button type="submit" form="audit-form" loading={submitting}>Simpan hasil audit</Button>
+            </>
+          ) : (
+            <Button variant="secondary" onClick={closeAudit}>Tutup</Button>
+          )
+        }
+      >
+        <div className="space-y-4">
+          <div role="tablist" aria-label="Cara memindai" className="grid grid-cols-2 gap-1 rounded-full bg-background-secondary-default p-1">
+            {([["device", "Scanner atau ketik", ScanLine], ["camera", "Kamera", Camera]] as const).map(([mode, label, Icon]) => (
               <button
-                onClick={() => {
-                  setIsAuditOpen(false);
-                  setAuditAsset(null);
-                }}
-                className="p-1 rounded bg-surface-2 border border-line text-muted hover:text-foreground transition-all cursor-pointer"
+                key={mode}
+                type="button"
+                role="tab"
+                aria-selected={scanMode === mode}
+                onClick={() => chooseScanMode(mode)}
+                className={cn(
+                  "flex h-9 cursor-pointer items-center justify-center gap-2 rounded-full px-3 text-body-sm font-medium transition-colors",
+                  scanMode === mode ? "bg-background-primary-default text-heading shadow-xs" : "text-muted hover:text-foreground"
+                )}
               >
-                <X className="w-4 h-4" />
+                <Icon className="size-4" aria-hidden />
+                {label}
               </button>
-            </div>
+            ))}
+          </div>
 
-            <div role="tablist" aria-label="Cara memindai" className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-surface-2 border border-line">
-              {([["device", "Scanner / ketik", ScanLine], ["camera", "Kamera", Camera]] as const).map(([mode, label, Icon]) => (
-                <button
-                  key={mode}
-                  type="button"
-                  role="tab"
-                  aria-selected={scanMode === mode}
-                  onClick={() => chooseScanMode(mode)}
-                  className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-label font-semibold transition-colors cursor-pointer ${scanMode === mode ? "bg-surface text-heading border border-line" : "text-muted hover:text-foreground border border-transparent"}`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {label}
-                </button>
-              ))}
-            </div>
+          <form onSubmit={handleScanSearch} className="flex gap-2">
+            <Input
+              aria-label="Kode aset"
+              required
+              value={scanInputCode}
+              onChange={(e) => setScanInputCode(e.target.value)}
+              autoFocus={scanMode === "device"}
+              placeholder="Pindai barcode atau ketik kode aset…"
+              className="font-mono"
+            />
+            <Button type="submit" variant="secondary" icon={Search}>Cari</Button>
+          </form>
 
-            <form onSubmit={handleScanSearch} className="flex gap-2">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  required
-                  value={scanInputCode}
-                  onChange={(e) => setScanInputCode(e.target.value)}
-                  autoFocus={scanMode === "device"}
-                  placeholder="Scan barcode / ketik kode aset…"
-                  className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-label placeholder:text-subtle"
-                />
+          {scanError && <Alert tone="danger">{scanError}</Alert>}
+          {successMsg && <Alert tone="success">{successMsg}</Alert>}
+
+          {scanMode === "camera" && !successMsg && (
+            <CameraScanner
+              paused={!!auditAsset || submitting}
+              onDetected={(code) => {
+                setScanInputCode(code);
+                void lookupCode(code);
+              }}
+            />
+          )}
+
+          {scanMode === "device" && !auditAsset && !successMsg && (
+            <div className="flex flex-col items-center gap-3 rounded-2xl bg-background-secondary-default px-5 py-6 text-center">
+              <span className="grid size-12 place-items-center rounded-full bg-background-primary-default text-subtle shadow-xs"><ScanLine className="size-6" aria-hidden /></span>
+              <p className="max-w-sm text-body-sm text-muted">Scanner USB atau Bluetooth bekerja seperti keyboard: klik kolom di atas, lalu pindai label. Kode juga dapat diketik manual.</p>
+            </div>
+          )}
+
+          {auditAsset && (
+            <form id="audit-form" onSubmit={handleSaveAudit} className="space-y-4">
+              <div className="rounded-2xl bg-background-secondary-default p-4">
+                <p className="text-body font-semibold text-heading">{auditAsset.name}</p>
+                <p className="mt-0.5 text-body-sm text-muted"><span className="font-mono">{auditAsset.code}</span> · {categoryLabel(auditAsset.category)} · Kondisi tercatat: {INVENTORY_CONDITION_LABELS[auditAsset.condition] ?? auditAsset.condition}</p>
               </div>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-primary text-label font-semibold text-primary-foreground rounded-lg hover:bg-primary-hover transition-all border border-line cursor-pointer"
-              >
-                Temukan
-              </button>
+              <Field label="Kondisi hasil pemeriksaan" required>
+                <Select aria-label="Kondisi hasil pemeriksaan" value={auditCondition} onChange={(e) => setAuditCondition(e.target.value as "good" | "damaged" | "lost")}>
+                  <option value="good">Baik</option>
+                  <option value="damaged">Rusak</option>
+                  <option value="lost">Hilang</option>
+                </Select>
+              </Field>
+              <Field label="Catatan pemeriksa">
+                <Textarea rows={3} value={auditNotes} onChange={(e) => setAuditNotes(e.target.value)} placeholder="Contoh: layar lecet ringan, adaptor hilang" />
+              </Field>
             </form>
-
-            {scanError && (
-              <div className="p-3 rounded bg-danger-soft border border-danger/20 text-danger text-label flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 shrink-0" />
-                <span>{scanError}</span>
-              </div>
-            )}
-
-            {successMsg && (
-              <div className="p-3 rounded bg-success-soft border border-success/20 text-success text-label flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 shrink-0" />
-                <span>{successMsg}</span>
-              </div>
-            )}
-
-            {scanMode === "camera" && !successMsg && (
-              <CameraScanner
-                paused={!!auditAsset || submitting}
-                onDetected={(code) => {
-                  setScanInputCode(code);
-                  void lookupCode(code);
-                }}
-              />
-            )}
-
-            {/* Hardware scanner guide */}
-            {scanMode === "device" && !auditAsset && !successMsg && (
-              <div className="relative border border-line rounded-lg overflow-hidden h-40 bg-surface-2 flex flex-col items-center justify-center text-muted">
-                <div className="absolute inset-x-0 h-[2px] bg-danger top-1/2 -translate-y-1/2 animate-[pulse_1.5s_infinite] shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-                <div className="border border-success/40 w-64 h-24 rounded flex items-center justify-center border-dashed relative">
-                  <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-success" />
-                  <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-success" />
-                  <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-success" />
-                  <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-success" />
-                  <span className="text-caption uppercase tracking-widest font-mono text-success">Menunggu Barcode...</span>
-                </div>
-                <span className="text-caption text-subtle mt-2 font-sans text-center px-4">Scanner USB/Bluetooth bekerja seperti keyboard: klik kolom di atas lalu pindai label. Kode juga bisa diketik manual.</span>
-              </div>
-            )}
-
-            {/* Audit Form when asset is detected */}
-            {auditAsset && (
-              <form onSubmit={handleSaveAudit} className="space-y-4 text-label">
-                <div className="p-3 bg-surface-2 rounded-lg border border-line space-y-1.5">
-                  <div className="font-semibold text-foreground">Aset: {auditAsset.name}</div>
-                  <div className="text-label text-muted">Kode: {auditAsset.code} &bull; Kategori: {auditAsset.category}</div>
-                  <div className="text-label text-muted">Kondisi Saat Ini: <span className="capitalize font-semibold">{auditAsset.condition}</span></div>
-                </div>
-
-                <div>
-                  <label className="block text-caption font-semibold text-foreground uppercase tracking-wider mb-1.5">Kondisi Hasil Pemeriksaan</label>
-                  <Select
-                    value={auditCondition}
-                    onChange={(e) => setAuditCondition(e.target.value as "good" | "damaged" | "lost")}
-                    className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-label"
-                  >
-                    <option value="good">Baik</option>
-                    <option value="damaged">Rusak</option>
-                    <option value="lost">Hilang</option>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="block text-caption font-semibold text-foreground uppercase tracking-wider mb-1.5">Catatan Pemeriksa (Auditor)</label>
-                  <textarea
-                    rows={3}
-                    value={auditNotes}
-                    onChange={(e) => setAuditNotes(e.target.value)}
-                    placeholder="Contoh: Layar lecet ringan, adaptor hilang..."
-                    className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-line text-foreground focus:outline-none focus:ring-1 focus:ring-primary text-label"
-                  />
-                </div>
-
-                <div className="border-t border-line pt-4 flex gap-3 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setAuditAsset(null)}
-                    className="px-4 py-2 rounded-lg border border-line text-label font-semibold text-foreground hover:bg-surface-2 transition-all cursor-pointer"
-                  >
-                    Reset Pindai
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-4 py-2 bg-success hover:brightness-110 text-label font-semibold text-success-foreground rounded-lg transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
-                  >
-                    {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                    Simpan Laporan Audit
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div></Portal>
-      )}
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -27,7 +27,7 @@ const action = z.discriminatedUnion("action", [
 export const POST = wrapRouteHandler(async (req) => {
   const ctx = await superadmin(req);
   const body = await parseBody(req, action);
-  enforceRateLimit("app-update", ctx.user.id, { max: 6, windowMs: 10 * 60_000 });
+  enforceRateLimit("app-update", ctx.user.id, { max: 6, windowMs: 10 * 60_000, blockMs: 2 * 60_000 });
   const result = body.action === "update" ? await startUpdate(body.version) : await startRollback();
   await logActivity({ userId: ctx.user.id, action: body.action === "update" ? "APP_UPDATE_STARTED" : "APP_ROLLBACK_STARTED", module: "settings", after: result, ip: ctx.ip, userAgent: ctx.userAgent });
   return apiSuccess(result, body.action === "update"

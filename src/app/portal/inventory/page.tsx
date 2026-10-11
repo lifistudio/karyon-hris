@@ -1,17 +1,16 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  Package, Loader2, ClipboardCheck, X, FileText, CheckCircle2, ShieldAlert 
-} from "lucide-react";
-import { Portal } from "@/components/ui/Floating";
+import { Package, FileText, CheckCircle2 } from "@/components/icons";
+import { Badge, Button, Card, EmptyState, Modal, PageHeader, SkeletonCards, Tabs } from "@/components/ui";
+import { INVENTORY_CATEGORY_LABELS } from "@/lib/hr/labels";
 import { useToast } from "@/components/ui/Toast";
 
 interface InventoryAsset {
   _id: string;
   code: string;
   name: string;
-  category: "laptop" | "phone" | "vehicle" | "other";
+  category: string;
   condition: "good" | "damaged" | "lost";
 }
 
@@ -90,7 +89,7 @@ export default function InventoryEmployeePage() {
     }
 
     ctx.beginPath();
-    ctx.moveTo(clientX - rect.left, clientY - rect.top);
+    ctx.moveTo((clientX - rect.left) * (canvas.width / rect.width), (clientY - rect.top) * (canvas.height / rect.height));
     setIsDrawing(true);
   };
 
@@ -112,7 +111,7 @@ export default function InventoryEmployeePage() {
       clientY = e.clientY;
     }
 
-    ctx.lineTo(clientX - rect.left, clientY - rect.top);
+    ctx.lineTo((clientX - rect.left) * (canvas.width / rect.width), (clientY - rect.top) * (canvas.height / rect.height));
     ctx.stroke();
   };
 
@@ -170,196 +169,116 @@ export default function InventoryEmployeePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-200 p-6 md:p-12 font-sans relative overflow-hidden">
-      <div className="max-w-4xl mx-auto space-y-8 relative z-10">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-line pb-6">
-          <div>
-            <h1 className="text-display-sm md:text-display text-heading">
-              Inventaris & Aset Saya
-            </h1>
-            <p className="text-label text-muted mt-1">
-              Daftar aset fasilitas kantor yang sedang Anda gunakan. Lakukan penandatanganan digital BAST untuk aset baru.
-            </p>
-          </div>
-        </div>
+    <div>
+      <PageHeader
+        title="Inventaris saya"
+        description="Aset kantor yang sedang Anda gunakan. Tanda tangani BAST untuk aset yang baru diserahkan."
+      />
 
-        {/* Content Body */}
-        {loading ? (
-          <div className="h-64 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-foreground" />
-          </div>
-        ) : assignments.length === 0 ? (
-          <div className="h-48 border border-dashed border-line rounded-xl flex flex-col items-center justify-center text-center p-6 text-muted bg-surface">
-            <Package className="w-8 h-8 mb-2 opacity-50" />
-            <p className="text-body font-medium">Tidak ada aset inventaris yang ditugaskan untuk Anda saat ini.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {assignments.map(asg => {
-              const item = asg.inventoryId;
-              const isPending = asg.status === "pending_handover";
-              return (
-                <div 
-                  key={asg._id}
-                  className="bg-surface border border-line rounded-2xl p-6 flex flex-col justify-between space-y-4 hover:border-line-strong transition-all"
-                >
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div className="p-2.5 rounded-lg bg-surface-2 border border-line text-foreground">
-                        <Package className="w-5 h-5" />
-                      </div>
-                      <span className={`px-2 py-0.5 rounded text-caption font-semibold border ${
-                        asg.status === "active"
-                          ? "bg-success-soft text-success dark:text-success border-success/20"
-                          : "bg-warning-soft text-warning dark:text-warning border-warning/20"
-                      }`}>
-                        {asg.status === "active" ? "Aktif (Diterima)" : "Menunggu BAST"}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-caption font-mono font-semibold text-muted uppercase tracking-wider">{item.code}</span>
-                      <h3 className="text-body-lg font-semibold text-foreground mt-0.5">{item.name}</h3>
-                      <p className="text-label text-muted capitalize">Kategori: {item.category}</p>
-                    </div>
-
-                    <div className="border-t border-line pt-3 flex items-center justify-between text-label text-muted">
-                      <span>Tanggal Penyerahan:</span>
-                      <span className="font-semibold text-foreground">
-                        {new Date(asg.handoverDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-                      </span>
-                    </div>
+      {loading ? (
+        <SkeletonCards count={2} />
+      ) : assignments.length === 0 ? (
+        <Card>
+          <EmptyState icon={Package} title="Belum ada aset untuk Anda" description="Aset yang diserahkan tim GA akan muncul di sini." />
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {assignments.map((asg) => {
+            const item = asg.inventoryId;
+            const isPending = asg.status === "pending_handover";
+            return (
+              <Card key={asg._id} className="flex flex-col gap-4 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-mono text-body-sm text-muted">{item.code}</p>
+                    <h3 className="mt-0.5 text-body-lg font-semibold text-heading">{item.name}</h3>
+                    <p className="text-body-sm text-muted">{INVENTORY_CATEGORY_LABELS[item.category] ?? item.category}</p>
                   </div>
-
-                  {isPending ? (
-                    <button
-                      onClick={() => setSelectedAsg(asg)}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary text-label font-semibold text-primary-foreground border border-transparent hover:bg-primary-hover cursor-pointer transition-all"
-                    >
-                      <FileText className="w-4 h-4" />
-                      Tanda Tangan BAST Digital
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-1.5 justify-center py-2 text-caption font-semibold text-success dark:text-success bg-success-soft rounded-lg border border-success/15">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Sudah Diserahterimakan
-                    </div>
-                  )}
+                  <Badge tone={isPending ? "warning" : "success"} dot>{isPending ? "Menunggu BAST" : "Diterima"}</Badge>
                 </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Signature Digital Canvas Modal */}
-        {selectedAsg && (
-          <Portal><div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-overlay backdrop-blur-xs p-4">
-            <div className="w-full max-w-md bg-surface border border-line rounded-xl shadow-[var(--shadow-pop)] p-6 flex flex-col">
-              <div className="flex justify-between items-center pb-4 border-b border-line">
-                <div>
-                  <h3 className="text-label font-semibold text-foreground uppercase">Tanda Tangan Elektronik (BAST)</h3>
-                  <p className="text-label text-muted mt-0.5">Konfirmasi penerimaan barang: {selectedAsg.inventoryId.name}</p>
+                <div className="flex items-center justify-between rounded-2xl bg-background-secondary-default px-4 py-3 text-body-sm">
+                  <span className="text-muted">Tanggal penyerahan</span>
+                  <span className="font-medium text-heading">
+                    {new Date(asg.handoverDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+                  </span>
                 </div>
-                <button
-                  onClick={() => setSelectedAsg(null)}
-                  className="p-1 rounded bg-surface-2 border border-line text-muted hover:text-foreground cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="py-4 space-y-3">
-                <div className="flex gap-2 p-1 bg-surface-2 border border-line rounded-lg w-fit">
-                  <button
-                    type="button"
-                    onClick={() => setSignMethod("draw")}
-                    className={`px-3 py-1 rounded text-caption font-semibold cursor-pointer transition-all ${ signMethod === "draw" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground dark:hover:text-foreground" }`}
-                  >
-                    Tulis Tanda Tangan
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSignMethod("upload")}
-                    className={`px-3 py-1 rounded text-caption font-semibold cursor-pointer transition-all ${ signMethod === "upload" ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground dark:hover:text-foreground" }`}
-                  >
-                    Unggah Berkas BAST
-                  </button>
-                </div>
-
-                <div className="text-label text-muted leading-relaxed bg-surface-2 p-2.5 rounded border border-line">
-                  {signMethod === "draw" 
-                    ? "Dengan menandatangani di bawah ini, saya menyatakan telah menerima aset dengan baik dan bertanggung jawab atas pemeliharaannya."
-                    : "Silakan unggah pindaian (scan) / foto berkas BAST fisik yang sudah ditandatangani secara basah."
-                  }
-                </div>
-
-                {signMethod === "draw" ? (
-                  <div className="border border-line rounded-lg bg-white overflow-hidden relative">
-                    <canvas
-                      ref={canvasRef}
-                      width={380}
-                      height={180}
-                      className="w-full h-44 cursor-crosshair bg-white"
-                      onMouseDown={startDrawing}
-                      onMouseMove={draw}
-                      onMouseUp={stopDrawing}
-                      onMouseLeave={stopDrawing}
-                      onTouchStart={startDrawing}
-                      onTouchMove={draw}
-                      onTouchEnd={stopDrawing}
-                    />
-                    <div className="absolute bottom-2 right-2 text-caption text-subtle select-none pointer-events-none">
-                      Gunakan Mouse / Layar Sentuh
-                    </div>
-                  </div>
+                {isPending ? (
+                  <Button icon={FileText} className="w-full" onClick={() => setSelectedAsg(asg)}>Tanda tangani BAST</Button>
                 ) : (
-                  <div className="border border-dashed border-line rounded-lg p-6 bg-surface-2 dark:bg-surface-2 flex flex-col items-center justify-center gap-3">
-                    <input
-                      type="file"
-                      id="bast-file-upload"
-                      accept="image/*,application/pdf"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="bast-file-upload"
-                      className="px-4 py-2 bg-primary text-label font-semibold text-primary-foreground rounded-lg cursor-pointer hover:bg-primary-hover transition-all border border-line"
-                    >
-                      Pilih Berkas PDF / Gambar
-                    </label>
-                    {fileName ? (
-                      <div className="text-caption text-success dark:text-success font-semibold truncate max-w-xs">
-                        Terpilih: {fileName}
-                      </div>
-                    ) : (
-                      <div className="text-caption text-subtle">Format yang diterima: PDF, PNG, JPG (Maks 5MB)</div>
-                    )}
-                  </div>
+                  <p className="flex items-center justify-center gap-1.5 text-body-sm font-medium text-success">
+                    <CheckCircle2 className="size-4" aria-hidden />
+                    Serah terima selesai
+                  </p>
                 )}
-              </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
-              <div className="border-t border-line pt-4 flex gap-3">
-                <button
-                  onClick={signMethod === "draw" ? clearCanvas : () => { setUploadedFileBase64(""); setFileName(""); }}
-                  className="flex-1 py-2 rounded-lg border border-line text-label font-semibold text-foreground hover:bg-surface-2 transition-all cursor-pointer text-center"
-                >
-                  {signMethod === "draw" ? "Bersihkan" : "Hapus Berkas"}
-                </button>
-                <button
-                  onClick={handleSubmitSignature}
-                  disabled={submitting}
-                  className="flex-1 py-2 rounded-lg bg-primary text-label font-semibold text-primary-foreground border border-transparent hover:bg-primary-hover transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
-                >
-                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Konfirmasi & Simpan
-                </button>
-              </div>
+      <Modal
+        open={!!selectedAsg}
+        onClose={() => setSelectedAsg(null)}
+        title="Tanda tangan BAST"
+        description={selectedAsg ? `Konfirmasi penerimaan ${selectedAsg.inventoryId.name}.` : undefined}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={signMethod === "draw" ? clearCanvas : () => { setUploadedFileBase64(""); setFileName(""); }}
+            >
+              {signMethod === "draw" ? "Bersihkan" : "Hapus berkas"}
+            </Button>
+            <Button onClick={handleSubmitSignature} loading={submitting}>Konfirmasi & simpan</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Tabs
+            value={signMethod}
+            onChange={setSignMethod}
+            tabs={[
+              { id: "draw", label: "Tulis tanda tangan" },
+              { id: "upload", label: "Unggah berkas" },
+            ]}
+          />
+          <p className="text-body-sm leading-relaxed text-muted">
+            {signMethod === "draw"
+              ? "Dengan menandatangani, saya menyatakan telah menerima aset dalam kondisi baik dan bertanggung jawab atas pemeliharaannya."
+              : "Unggah pindaian atau foto BAST fisik yang sudah ditandatangani."}
+          </p>
+          {signMethod === "draw" ? (
+            <div className="relative overflow-hidden rounded-2xl bg-white border border-border-button-default">
+              <canvas
+                ref={canvasRef}
+                width={380}
+                height={180}
+                className="h-44 w-full cursor-crosshair touch-none bg-white"
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+              />
+              <span className="pointer-events-none absolute bottom-2 end-3 select-none text-body-sm text-neutral-500">Gunakan mouse atau layar sentuh</span>
             </div>
-          </div></Portal>
-        )}
-      </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 rounded-2xl bg-background-secondary-default p-6 text-center">
+              <input type="file" id="bast-file-upload" accept="image/*,application/pdf" onChange={handleFileChange} className="hidden" />
+              <label htmlFor="bast-file-upload" className="inline-flex h-10 cursor-pointer items-center rounded-full bg-background-primary-default px-4 text-body font-medium text-heading shadow-xs border border-border-button-default hover:bg-background-secondary-hover">
+                Pilih berkas PDF atau gambar
+              </label>
+              {fileName ? (
+                <p className="max-w-xs truncate text-body-sm font-medium text-success">Terpilih: {fileName}</p>
+              ) : (
+                <p className="text-body-sm text-muted">PDF, PNG, atau JPG, maksimal 5 MB</p>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

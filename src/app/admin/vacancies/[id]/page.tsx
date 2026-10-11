@@ -3,21 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {
-  ArrowLeft,
-  ArrowRight,
-  CalendarClock,
-  ClipboardList,
-  ListFilter,
-  MapPin,
-  Star,
-  CircleCheck,
-  CircleX,
-  FileText,
-  MoveRight,
-  UserPlus,
-  Users,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarClock, ClipboardList, ListFilter, MapPin, Star, CircleCheck, CircleX, FileText, MoveRight, UserPlus, Users } from "@/components/icons";
 import {
   Alert,
   Button,
@@ -340,7 +326,7 @@ function StageColumn({
     >
       <header
         className={cn(
-          "flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-t-[var(--radius)] border border-b-0 border-line",
+          "flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-t-[var(--radius-card)] border border-b-0 border-line",
           orphan ? "bg-warning-soft" : "bg-surface-2"
         )}
       >
@@ -352,7 +338,7 @@ function StageColumn({
 
       <div
         className={cn(
-          "border border-line rounded-b-[var(--radius)] bg-surface/50 p-2 space-y-2 min-h-32 transition-colors",
+          "border border-line rounded-b-[var(--radius-card)] bg-surface/50 p-2 space-y-2 min-h-32 transition-colors",
           accepts && "border-dashed border-primary/50",
           over && "border-primary bg-primary-soft"
         )}

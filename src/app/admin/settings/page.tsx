@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { KeyRound } from "lucide-react";
+import { KeyRound } from "@/components/icons";
 import { InitialPasswordsPanel } from "./InitialPasswords";
-import { Plus, RotateCcw, Save, Shield, Sliders, Trash2, Users } from "lucide-react";
+import { Plus, RotateCcw, Save, Shield, Sliders, Trash2, Users } from "@/components/icons";
 import {
   Alert,
   Button,
@@ -72,7 +72,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-display-sm md:text-display text-heading">Pengaturan Sistem</h1>
+        <h1 className="text-display-sm md:text-display text-heading">Pengaturan sistem</h1>
         <p className="text-body text-muted mt-2 leading-relaxed">
           Semua aturan bisnis di bawah ini berlaku seketika tanpa perlu deploy ulang.
         </p>
@@ -82,9 +82,9 @@ export default function SettingsPage() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { id: "settings", label: "Aturan Bisnis", icon: Sliders },
-          { id: "roles", label: "Peran & Hak Akses", icon: Shield },
-          { id: "passwords", label: "Kata Sandi Awal", icon: KeyRound },
+          { id: "settings", label: "Aturan bisnis", icon: Sliders },
+          { id: "roles", label: "Peran & hak akses", icon: Shield },
+          { id: "passwords", label: "Kata sandi awal", icon: KeyRound },
         ]}
       />
 
@@ -533,18 +533,18 @@ function RolesPanel() {
               <table className="w-full text-body border-collapse min-w-[720px]">
                 <thead>
                   <tr>
-                    <th className="text-left text-caption font-semibold uppercase tracking-wide text-subtle px-3 py-3 border-b border-line">
+                    <th className="text-left text-label font-semibold text-subtle px-3 py-3 border-b border-line">
                       Modul
                     </th>
                     {meta.actions.map((a) => (
                       <th
                         key={a.id}
-                        className="text-center text-caption font-semibold uppercase tracking-wide text-subtle px-2 py-3 border-b border-line whitespace-nowrap"
+                        className="text-center text-label font-semibold text-subtle px-2 py-3 border-b border-line whitespace-nowrap"
                       >
                         {a.label}
                       </th>
                     ))}
-                    <th className="text-left text-caption font-semibold uppercase tracking-wide text-subtle px-3 py-3 border-b border-line">
+                    <th className="text-left text-label font-semibold text-subtle px-3 py-3 border-b border-line">
                       Lingkup
                     </th>
                   </tr>

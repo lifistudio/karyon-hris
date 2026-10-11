@@ -4,19 +4,10 @@ import React, { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { BirthdayPanel } from "@/components/BirthdayPanel";
 import { useSearchParams } from "next/navigation";
-import {
-  AlertTriangle,
-  Briefcase,
-  CalendarOff,
-  ClipboardCheck,
-  Clock3,
-  FileWarning,
-  PartyPopper,
-  TrendingUp,
-  UserCheck,
-  UserPlus,
-  Users,
-} from "lucide-react";
+import { AlertTriangle, Briefcase, CalendarOff, ClipboardCheck, Clock3, FileWarning, PartyPopper, UserCheck, UserPlus, Users } from "@/components/icons";
+import { DonutChart, LegendDot, TrendBars } from "@/components/charts";
+import { HrisBanners } from "@/components/admin/HrisBanners";
+import { useSession } from "next-auth/react";
 import {
   Alert,
   Badge,
@@ -29,7 +20,7 @@ import {
   StatCard,
 } from "@/components/ui";
 import { api, errorMessage } from "@/lib/client-api";
-import { formatDate, formatDateLong } from "@/lib/time";
+import { formatDate, formatDateLong, timezoneLabel } from "@/lib/time";
 
 interface DashboardData {
   todayKey: string;
@@ -76,6 +67,8 @@ function DeniedBanner() {
 }
 
 export default function AdminDashboardPage() {
+  const { data: session } = useSession();
+  const superadmin = session?.user?.role === "SUPERADMIN";
 
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState("");
@@ -101,15 +94,17 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-display-sm md:text-display text-heading">Ringkasan Hari Ini</h1>
+        <h1 className="text-display-sm md:text-display text-heading">Ringkasan hari ini</h1>
         <p className="text-body text-muted mt-2 leading-relaxed">
-          {data ? formatDateLong(data.todayKey) : "Memuat…"} · seluruh waktu dalam WIB
+          {data ? formatDateLong(data.todayKey) : "Memuat…"} · seluruh waktu dalam {timezoneLabel()}
         </p>
       </header>
 
       <Suspense fallback={null}>
         <DeniedBanner />
       </Suspense>
+
+      <HrisBanners placement="dashboard" enabled={superadmin} />
 
       {error && <ErrorState message={error} onRetry={load} />}
 
@@ -151,80 +146,71 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {/* Today */}
-          <section>
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <h2 className="eyebrow">Kehadiran hari ini</h2>
-              <Link href="/admin/attendance" className="text-label font-semibold text-primary hover:underline">Lihat detail per karyawan →</Link>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatCard
-                label="Sudah absen masuk"
-                value={data.cards.presentToday}
-                hint={`dari ${data.cards.headcount} karyawan aktif`}
-                icon={UserCheck}
-                tone="success"
-              />
-              <StatCard
-                label="Terlambat"
-                value={data.cards.lateToday}
-                hint="melewati jadwal + toleransi"
-                icon={Clock3}
-                tone={data.cards.lateToday > 0 ? "warning" : "neutral"}
-              />
-              <StatCard
-                label="Cuti / izin"
-                value={data.cards.onLeaveToday}
-                hint="pengajuan disetujui"
-                icon={CalendarOff}
-                tone="info"
-              />
-              <StatCard
-                label="Belum absen / alpha"
-                value={data.cards.absentToday}
-                hint="jadwal sudah mulai, tanpa presensi & izin"
-                icon={AlertTriangle}
-                tone={data.cards.absentToday > 0 ? "danger" : "neutral"}
-              />
-            </div>
-          </section>
+          {/* Today: tiles + composition, BoardUI's white card holding grey tiles */}
+          <Card>
+            <CardHeader
+              title="Kehadiran hari ini"
+              actions={<Link href="/admin/attendance" className="text-body-sm font-semibold text-primary hover:underline">Lihat per karyawan →</Link>}
+            />
+            <CardBody className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_17rem]">
+              <div className="grid grid-cols-2 gap-3">
+                <StatCard label="Sudah absen masuk" value={data.cards.presentToday} hint={`dari ${data.cards.headcount} karyawan aktif`} icon={UserCheck} />
+                <StatCard label="Terlambat" value={data.cards.lateToday} hint="melewati jadwal + toleransi" icon={Clock3} />
+                <StatCard label="Cuti / izin" value={data.cards.onLeaveToday} hint="pengajuan disetujui" icon={CalendarOff} />
+                <StatCard label="Belum absen / alpha" value={data.cards.absentToday} hint="jadwal mulai, tanpa presensi & izin" icon={AlertTriangle} />
+              </div>
+              <div className="flex flex-col items-center justify-center gap-4 rounded-2xl bg-surface-2 p-4">
+                <DonutChart
+                  caption="karyawan aktif"
+                  total={data.cards.headcount}
+                  slices={[
+                    { label: "Tepat waktu", value: Math.max(0, data.cards.presentToday - data.cards.lateToday), tone: 7 },
+                    { label: "Terlambat", value: data.cards.lateToday, tone: 8 },
+                    { label: "Cuti / izin", value: data.cards.onLeaveToday, tone: 5 },
+                    { label: "Belum absen", value: data.cards.absentToday, tone: 3 },
+                  ]}
+                />
+                <div className="grid w-full grid-cols-2 gap-x-3 gap-y-1.5">
+                  <LegendDot tone={7} label="Tepat" />
+                  <LegendDot tone={8} label="Terlambat" />
+                  <LegendDot tone={5} label="Cuti" />
+                  <LegendDot tone={3} label="Belum" />
+                </div>
+              </div>
+            </CardBody>
+          </Card>
 
           {/* Organisation */}
-          <section>
-            <h2 className="eyebrow mb-3">
-              Organisasi
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Card>
+            <CardHeader title="Organisasi" />
+            <CardBody className="grid grid-cols-2 gap-3 xl:grid-cols-4">
               <StatCard label="Karyawan aktif" value={data.cards.headcount} hint={`${data.cards.branches} cabang`} icon={Users} />
-              <StatCard label="Dalam onboarding" value={data.cards.onboarding} hint="belum berstatus aktif" icon={UserPlus} tone="info" />
-              <StatCard label="Kandidat berjalan" value={data.cards.openCandidates} hint="di pipeline rekrutmen" icon={Briefcase} tone="primary" />
-              <StatCard
-                label="Kontrak segera berakhir"
-                value={data.cards.expiringContracts}
-                hint="dalam 30 hari ke depan"
-                icon={FileWarning}
-                tone={data.cards.expiringContracts > 0 ? "warning" : "neutral"}
-              />
-            </div>
-          </section>
+              <StatCard label="Dalam onboarding" value={data.cards.onboarding} hint="belum berstatus aktif" icon={UserPlus} />
+              <StatCard label="Kandidat berjalan" value={data.cards.openCandidates} hint="di pipeline rekrutmen" icon={Briefcase} />
+              <StatCard label="Kontrak segera berakhir" value={data.cards.expiringContracts} hint="dalam 30 hari ke depan" icon={FileWarning} />
+            </CardBody>
+          </Card>
 
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Trend */}
             <Card className="lg:col-span-2">
               <CardHeader
-                icon={TrendingUp}
                 title="Tren kehadiran 14 hari terakhir"
                 description={`Bulan berjalan: ${data.month.attendanceRate}% kehadiran · ${data.month.punctualityRate}% tepat waktu dari ${data.month.workingDays} hari kerja.`}
+                actions={<div className="hidden sm:flex items-center gap-4"><LegendDot tone={6} label="Tepat waktu" /><LegendDot tone={8} label="Terlambat" /><LegendDot tone="neutral" label="Akhir pekan" /></div>}
               />
               <CardBody>
-                <TrendChart trend={data.trend} headcount={data.cards.headcount} />
-                <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-line">
+                <div className="rounded-2xl bg-surface-2 p-4">
+                  <TrendBars
+                    label={`Grafik kehadiran 14 hari terakhir: ${data.trend.map((t) => `${formatDate(t.dateKey)} hadir ${t.present}, terlambat ${t.late}`).join("; ")}`}
+                    series={[{ key: "onTime", label: "Tepat waktu", tone: 6 }, { key: "late", label: "Terlambat", tone: 8 }]}
+                    data={data.trend.map((t) => ({ label: t.dateKey.slice(-2), title: formatDate(t.dateKey), onTime: Math.max(0, t.present - t.late), late: t.late, muted: t.isWeekend }))}
+                  />
+                </div>
+                <div className="mt-4 grid grid-cols-3 gap-3">
                   <Metric label="Hari kerja berjalan" value={data.month.workingDays} />
                   <Metric label="Kejadian terlambat" value={data.month.lateRecords} />
-                  <Metric
-                    label="Akumulasi keterlambatan"
-                    value={`${data.month.lateMinutes} mnt`}
-                  />
+                  <Metric label="Akumulasi terlambat" value={`${data.month.lateMinutes} mnt`} />
                 </div>
               </CardBody>
             </Card>
@@ -268,69 +254,9 @@ export default function AdminDashboardPage() {
 
 function Metric({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div>
-      <p className="text-caption text-subtle">{label}</p>
-      <p className="text-body-lg font-semibold tabular-nums mt-0.5">{value}</p>
+    <div className="rounded-2xl bg-surface-2 px-4 py-3">
+      <p className="text-body-sm text-muted">{label}</p>
+      <p className="text-title-sm font-medium text-heading tabular-nums mt-0.5">{value}</p>
     </div>
-  );
-}
-
-/**
- * Inline bar chart.
- *
- * Drawn with plain divs rather than a chart library: it is a single series over
- * 14 points, and shipping a charting bundle for it would cost far more than it
- * returns. Weekends are dimmed so a natural dip does not read as a problem.
- */
-function TrendChart({
-  trend,
-  headcount,
-}: {
-  trend: DashboardData["trend"];
-  headcount: number;
-}) {
-  const max = Math.max(headcount, ...trend.map((t) => t.present), 1);
-
-  return (
-    <div>
-      <div className="flex items-end gap-1.5 h-32" role="img" aria-label="Grafik kehadiran 14 hari terakhir">
-        {trend.map((t) => {
-          const pct = Math.round((t.present / max) * 100);
-          const latePct = t.present ? Math.round((t.late / t.present) * pct) : 0;
-          return (
-            <div key={t.dateKey} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
-              <div
-                className="w-full flex-1 flex items-end rounded-t bg-surface-2 overflow-hidden"
-                title={`${formatDate(t.dateKey)} — hadir ${t.present}, terlambat ${t.late}`}
-              >
-                <div
-                  className={`w-full rounded-t transition-all ${t.isWeekend ? "bg-line-strong" : "bg-primary"}`}
-                  style={{ height: `${Math.max(pct, t.present ? 6 : 0)}%` }}
-                >
-                  {latePct > 0 && (
-                    <div className="w-full bg-warning" style={{ height: `${(latePct / Math.max(pct, 1)) * 100}%` }} />
-                  )}
-                </div>
-              </div>
-              <span className="text-caption text-subtle tabular-nums">{t.dateKey.slice(-2)}</span>
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex flex-wrap items-center gap-4 mt-4 text-caption text-subtle">
-        <LegendDot className="bg-primary" label="Hadir" />
-        <LegendDot className="bg-warning" label="Terlambat" />
-        <LegendDot className="bg-line-strong" label="Akhir pekan" />
-      </div>
-    </div>
-  );
-}
-
-function LegendDot({ className, label }: { className: string; label: string }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <span className={`w-2.5 h-2.5 rounded-sm ${className}`} />
-      {label}
-    </span>
   );
 }

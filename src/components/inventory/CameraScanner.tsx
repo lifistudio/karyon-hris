@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, CameraOff, RefreshCw } from "lucide-react";
+import { Camera, CameraOff, RefreshCw } from "@/components/icons";
 import { Button, ICON_STROKE, Select } from "@/components/ui";
 import { decodeCode39Row } from "@/lib/barcode";
 

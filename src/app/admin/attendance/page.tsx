@@ -3,7 +3,7 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlarmClock, BellRing, CalendarOff, Clock3, Download, Search, UserCheck, UserX } from "lucide-react";
+import { AlarmClock, BellRing, CalendarOff, Clock3, Download, Search, UserCheck, UserX } from "@/components/icons";
 import {
   Badge, Button, Card, EmptyState, ErrorState, Input, PageHeader, Select, SkeletonList, TableWrap, Td, Th, cn,
   type BadgeTone,

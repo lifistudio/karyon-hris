@@ -3,16 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import {
-  ArrowLeft,
-  Building2,
-  CircleCheck,
-  Clock3,
-  MapPin,
-  Moon,
-  Send,
-  Sun,
-} from "lucide-react";
+import { ArrowLeft, Building2, CircleCheck, Clock3, MapPin, Moon, Send, Sun } from "@/components/icons";
 import { useTheme } from "@/components/ThemeProvider";
 import { Badge, Button, ICON_STROKE, SkeletonList } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
@@ -27,7 +18,7 @@ import {
   type FormValues,
   type RenderField,
 } from "@/components/recruitment/ApplicationFormRenderer";
-import { formatDate, formatRupiah } from "@/lib/time";
+import { formatDate, formatRupiah, timezoneLabel } from "@/lib/time";
 
 interface VacancyDetail {
   _id: string;
@@ -198,7 +189,7 @@ export default function VacancyDetailPage() {
 
       <footer className="border-t border-line">
         <div className="max-w-4xl mx-auto w-full px-5 py-7 text-body-sm text-subtle">
-          &copy; {new Date().getFullYear()} HRIS. Seluruh waktu dalam WIB.
+          &copy; {new Date().getFullYear()} HRIS. Seluruh waktu dalam {timezoneLabel()}.
         </div>
       </footer>
     </div>

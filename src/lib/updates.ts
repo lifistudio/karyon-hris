@@ -39,7 +39,8 @@ export function compareVersions(a: string, b: string) {
 
 let releaseCache: { at: number; value: Release | null } | null = null;
 export async function latestRelease(force = false): Promise<Release | null> {
-  if (!force && releaseCache && Date.now() - releaseCache.at < 30 * 60_000) return releaseCache.value;
+  // A failed check (website restarting, network blip) is retried after a minute, not half an hour.
+  if (!force && releaseCache && Date.now() - releaseCache.at < (releaseCache.value ? 30 * 60_000 : 60_000)) return releaseCache.value;
   const server = process.env.HRIS_LICENSE_SERVER?.replace(/\/+$/, "");
   let value: Release | null = null;
   if (server && /^https:\/\/|^http:\/\/(localhost|127\.0\.0\.1)/.test(server)) {

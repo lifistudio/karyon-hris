@@ -3,17 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Building2,
-  Clock3,
-  MapPin,
-  Moon,
-  Search,
-  Sun,
-  UserRoundSearch,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, Clock3, MapPin, Moon, Search, Sun, UserRoundSearch } from "@/components/icons";
 import { useTheme } from "@/components/ThemeProvider";
 import {
   Badge,
@@ -25,7 +15,7 @@ import {
   SkeletonList,
 } from "@/components/ui";
 import { api, errorMessage } from "@/lib/client-api";
-import { formatDate, formatRupiah } from "@/lib/time";
+import { formatDate, formatRupiah, timezoneLabel } from "@/lib/time";
 
 interface Vacancy {
   _id: string;
@@ -85,12 +75,8 @@ export default function CareerPage() {
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <header className="h-16 border-b border-line bg-background/85 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-5xl mx-auto w-full h-full px-5 flex items-center justify-between gap-4">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-body-sm font-medium text-muted hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" strokeWidth={ICON_STROKE} />
-            Beranda
+          <Link href="/" aria-label="Kembali ke beranda" title="Kembali ke beranda" className="grid size-9 place-items-center rounded-full text-muted hover:text-foreground hover:bg-background-secondary-default transition-colors">
+            <ArrowLeft className="w-[18px] h-[18px]" strokeWidth={ICON_STROKE} />
           </Link>
           <div className="flex items-center gap-2.5">
             <button
@@ -258,7 +244,7 @@ export default function CareerPage() {
       <footer className="border-t border-line">
         <div className="max-w-5xl mx-auto w-full px-5 py-7 flex flex-wrap items-center justify-between gap-3 text-body-sm">
           <p className="text-subtle">
-            &copy; {new Date().getFullYear()} HRIS. Seluruh waktu dalam WIB.
+            &copy; {new Date().getFullYear()} HRIS. Seluruh waktu dalam {timezoneLabel()}.
           </p>
           <Link href="/auth/login" className="text-muted hover:text-foreground transition-colors">
             Sudah menjadi karyawan? Masuk portal

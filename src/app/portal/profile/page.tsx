@@ -2,21 +2,10 @@
 
 import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { FileSignature } from "lucide-react";
+import { FileSignature } from "@/components/icons";
 import { MyContracts } from "@/components/portal/MyContracts";
 import { useSession, signOut } from "next-auth/react";
-import {
-  Briefcase,
-  Building2,
-  IdCard,
-  KeyRound,
-  Landmark,
-  Mail,
-  Save,
-  ScanFace,
-  ShieldCheck,
-  UserRound,
-} from "lucide-react";
+import { Briefcase, Building2, IdCard, KeyRound, Landmark, Mail, Save, ScanFace, ShieldCheck, UserRound } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -128,7 +117,7 @@ function ProfilePage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-display-sm md:text-display text-heading">Profil &amp; Keamanan</h1>
+        <h1 className="text-display-sm md:text-display text-heading">Profil &amp; keamanan</h1>
         <p className="text-body text-muted mt-2 leading-relaxed">
           Perbarui data kontak, kelola kata sandi, dan lihat kontrak kerja Anda.
         </p>
@@ -147,12 +136,12 @@ function ProfilePage() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { id: "profile", label: "Data Diri", icon: UserRound },
-          { id: "security", label: "Keamanan Akun", icon: ShieldCheck },
+          { id: "profile", label: "Data diri", icon: UserRound },
+          { id: "security", label: "Keamanan akun", icon: ShieldCheck },
           // Face enrolment belongs to an employee record; admin-only accounts
           // have no attendance to verify.
-          ...(employeeId ? [{ id: "face" as const, label: "Wajah Presensi", icon: ScanFace }] : []),
-          ...(employeeId ? [{ id: "contract" as const, label: "Kontrak Kerja", icon: FileSignature }] : []),
+          ...(employeeId ? [{ id: "face" as const, label: "Wajah presensi", icon: ScanFace }] : []),
+          ...(employeeId ? [{ id: "contract" as const, label: "Kontrak kerja", icon: FileSignature }] : []),
         ]}
       />
 
@@ -419,7 +408,7 @@ function ReadRow({
     <div className="flex items-start gap-2.5">
       <Icon className="w-3.5 h-3.5 text-subtle shrink-0 mt-0.5" />
       <div className="min-w-0 flex-1">
-        <p className="text-caption uppercase tracking-wide text-subtle">{label}</p>
+        <p className="text-label text-subtle">{label}</p>
         <p className={`text-label mt-0.5 break-words ${mono ? "font-mono" : ""} ${value ? "" : "text-subtle italic"}`}>
           {value || "Belum diisi"}
         </p>

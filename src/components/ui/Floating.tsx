@@ -136,7 +136,7 @@ export const FloatingPanel = React.forwardRef<
             role="dialog"
             aria-label={title}
             className={
-              "relative z-10 flex flex-col max-h-[80dvh] rounded-t-[var(--radius-lg)] bg-surface " +
+              "relative z-10 flex flex-col max-h-[80dvh] rounded-t-[var(--radius-xl2)] bg-surface " +
               "border-t border-line pb-[env(safe-area-inset-bottom)] animate-[sheet-in_160ms_ease-out] " +
               (className ?? "")
             }
@@ -158,7 +158,7 @@ export const FloatingPanel = React.forwardRef<
         ref={ref}
         style={placement.style}
         className={
-          "z-[80] flex flex-col overflow-hidden rounded-[var(--radius)] border border-line bg-surface " +
+          "z-[80] flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface " +
           "shadow-[var(--shadow-pop)] animate-[pop-in_120ms_ease-out] " +
           (className ?? "")
         }

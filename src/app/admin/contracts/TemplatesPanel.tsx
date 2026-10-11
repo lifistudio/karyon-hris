@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { FileText, Pencil, Plus, Trash2 } from "@/components/icons";
 import { Badge, Button, Card, ConfirmDialog, EmptyState, ErrorState, Field, ICON_STROKE, Input, Modal, SkeletonList, Tabs, Textarea, Toggle } from "@/components/ui";
 import { Combobox } from "@/components/ui/Combobox";
 import { LogoField } from "@/components/print/LogoField";
@@ -275,7 +275,7 @@ function TemplateEditor({
             <Textarea ref={ref} rows={20} className="font-mono text-body-sm" value={t.content} onChange={(e) => set({ content: e.target.value })} />
           </>
         ) : (
-          <div className="bg-[#eceef4] rounded-[var(--radius)] p-4 overflow-x-auto">
+          <div className="bg-[#eceef4] rounded-[var(--radius-card)] p-4 overflow-x-auto">
             <div className="bg-white mx-auto shadow-sm" style={{ width: "210mm", padding: "20mm" }}>
               <ContractDocument
                 content={t.content}

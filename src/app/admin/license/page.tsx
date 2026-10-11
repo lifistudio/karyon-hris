@@ -2,12 +2,15 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, KeyRound, Lock, RefreshCw, ShieldCheck, Unplug } from "lucide-react";
-import { Alert, Badge, Button, Card, CardBody, CardHeader, ConfirmDialog, ErrorState, Field, Input, PageHeader, Skeleton } from "@/components/ui";
+import { ArrowUpRight, CheckCircle2, KeyRound, Lock, RefreshCw, ShieldCheck, Unplug } from "@/components/icons";
+import { Alert, Badge, Button, ButtonLink, Card, CardBody, CardHeader, ConfirmDialog, ErrorState, Field, Input, PageHeader, Skeleton } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/client-api";
 import { invalidateLicense } from "@/lib/use-license";
 import { AppUpdatePanel } from "@/components/admin/AppUpdatePanel";
+import { PromoStrip, UpgradeCard } from "@/components/admin/OfferPanel";
+import { HrisBanners } from "@/components/admin/HrisBanners";
+import { useNotices } from "@/lib/use-notices";
 
 type LicenseState = "active" | "expired" | "suspended" | "released" | null;
 type Activation =
@@ -44,6 +47,8 @@ export default function LicensePage() {
   const [data, setData] = useState<Snapshot | null>(null), [error, setError] = useState(""), [retry, setRetry] = useState(0);
   const [licenseKey, setLicenseKey] = useState(""), [busy, setBusy] = useState("");
   const [replacing, setReplacing] = useState(false), [confirmRelease, setConfirmRelease] = useState(false);
+  const notices = useNotices(superadmin);
+  const offer = notices?.offer ?? null;
 
   useEffect(() => { let active = true; api.get<Snapshot>("/api/v1/license", { cache: "no-store" }).then((res) => { if (active) { setData(res.data ?? null); setError(""); } }).catch((err) => { if (active) setError(errorMessage(err)); }); return () => { active = false; }; }, [retry]);
   const act = async (body: Record<string, unknown>, label: string) => {
@@ -65,13 +70,19 @@ export default function LicensePage() {
   const lapsed = !!activation?.activated && (activation.licenseState !== "active" || data?.status === "expired");
   const showKeyForm = superadmin && (!activation?.activated || lapsed || replacing);
   const subscriptionDays = activation?.activated ? daysLeft(activation.subscriptionExpiresAt) : null;
+  // Pro that is running fine sees no sales copy; Community and lapsed installations do.
+  const proRunning = data?.edition === "pro" && !!activation?.activated && !lapsed;
+  const renewSoon = proRunning && subscriptionDays !== null && subscriptionDays >= 0 && subscriptionDays <= 14;
 
   return (
     <div>
-      <PageHeader title="Lisensi & Paket" description="Masukkan license key dan fitur Pro langsung aktif, tanpa instal ulang. Saat lisensi berakhir, aplikasi otomatis kembali ke Community tanpa kehilangan data; perpanjang dan Pro aktif lagi." />
+      <PageHeader title="Lisensi & paket" description="Masukkan license key dan fitur Pro langsung aktif, tanpa instal ulang. Saat lisensi berakhir, aplikasi otomatis kembali ke Community tanpa kehilangan data; perpanjang dan Pro aktif lagi." />
       {error ? <ErrorState message={error} onRetry={() => setRetry((n) => n + 1)} /> : !data || !status ? <Skeleton className="h-40" /> : (
         <div className="space-y-6">
           {data.edition === "community" && <Alert tone="warning" title="Image Community dari source">Aplikasi ini dibangun dari source Community sehingga tidak berisi modul Pro. Ganti <code className="font-mono">HRIS_IMAGE</code> ke <code className="font-mono">ghcr.io/lifistudio/hris:latest</code> lalu deploy ulang; license key yang sama langsung membuka fitur Pro.</Alert>}
+
+          {offer?.promo && !proRunning && <PromoStrip promo={offer.promo} />}
+          <HrisBanners placement="license" enabled={superadmin} />
 
           <Card>
             <CardHeader icon={ShieldCheck} title="Status lisensi" actions={<Badge tone={status.tone} dot>{status.label}</Badge>} />
@@ -84,12 +95,13 @@ export default function LicensePage() {
                 <div className="rounded-[var(--radius-control)] bg-surface-2 p-4"><dt className="text-caption text-muted">Terikat ke website</dt><dd className="mt-1 text-body font-semibold text-heading break-all">{activation?.activated ? activation.siteOrigin : "—"}</dd></div>
               </dl>
               {activation?.activated && activation.lastError && lapsed && <Alert tone="warning" title="Jawaban server lisensi">{activation.lastError}</Alert>}
-              {subscriptionDays !== null && subscriptionDays >= 0 && subscriptionDays <= 14 && !lapsed && <Alert tone="warning">Lisensi berakhir dalam {subscriptionDays} hari. Perpanjang dari dashboard pelanggan di website lisensi; aplikasi memperbarui status otomatis.</Alert>}
+              {renewSoon && <Alert tone="warning">Lisensi berakhir dalam {subscriptionDays} hari. Perpanjang dari dashboard pelanggan; status di sini diperbarui otomatis setelah pembayaran.</Alert>}
               {superadmin && (
                 <div className="flex flex-wrap gap-2">
                   {activation?.activated && <Button variant="secondary" icon={RefreshCw} loading={busy === "refresh"} disabled={!!busy} onClick={() => void act({ action: "refresh" }, "refresh")}>Periksa ulang status</Button>}
                   {activation?.activated && !replacing && !lapsed && <Button variant="secondary" icon={KeyRound} disabled={!!busy} onClick={() => setReplacing(true)}>Ganti license key</Button>}
                   {activation?.activated && <Button variant="ghost" icon={Unplug} disabled={!!busy} onClick={() => setConfirmRelease(true)}>Lepas lisensi</Button>}
+                  {offer && (renewSoon || lapsed) && <ButtonLink href={offer.renew.url} target="_blank" rel="noopener noreferrer" iconRight={ArrowUpRight}>{offer.renew.ctaLabel}</ButtonLink>}
                 </div>
               )}
             </CardBody>
@@ -111,10 +123,12 @@ export default function LicensePage() {
                   </form>
                 )}
                 {lapsed && activation?.activated && <p className="text-caption text-muted">Perpanjang lisensi yang sama? Tidak perlu memasukkan key lagi — setelah pembayaran dikonfirmasi, klik <b>Periksa ulang status</b> atau tunggu beberapa menit.</p>}
-                <p className="text-caption text-muted">Belum punya lisensi? Beli Pro di website lisensi, lalu lihat license key di dashboard pelanggan (perlu konfirmasi kata sandi).</p>
+                {!activation?.activated && <p className="text-caption text-muted">Belum punya lisensi? {offer ? <a href={offer.upgrade?.url ?? `${offer.website}/pricing`} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">Beli Pro di {new URL(offer.website).host}</a> : "Beli Pro di website lisensi"}, lalu salin license key dari dashboard pelanggan.</p>}
               </CardBody>
             </Card>
           )}
+
+          {offer?.upgrade && !proRunning && <UpgradeCard upgrade={offer.upgrade} />}
 
           <Card>
             <CardHeader title="Fitur Pro" description="Fitur yang terbuka sesuai lisensi Anda. Fitur Community tetap berjalan apa pun status lisensinya." />
@@ -131,7 +145,7 @@ export default function LicensePage() {
             </ul>
           </Card>
 
-          {superadmin && <AppUpdatePanel />}
+          {superadmin && <div id="update" className="scroll-mt-24"><AppUpdatePanel /></div>}
         </div>
       )}
       <ConfirmDialog

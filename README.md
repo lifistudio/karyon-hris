@@ -4,7 +4,7 @@
 
 # Karyon HRIS
 
-**HRIS self-hosted untuk perusahaan Indonesia.** Presensi foto dan GPS, cuti, payroll BPJS dan PPh 21, KPI, rekrutmen, dan inventaris, dijalankan di server milik perusahaan Anda sendiri.
+**HRIS self-hosted untuk perusahaan Indonesia, siap dihubungkan ke asisten AI.** Presensi foto dan GPS, cuti, payroll BPJS dan PPh 21, KPI, rekrutmen, dan inventaris, dijalankan di server milik perusahaan Anda sendiri.
 
 [Website](https://karyon.lifistudio.com/) · [Dokumentasi](https://karyon.lifistudio.com/docs) · [Fitur](https://karyon.lifistudio.com/features) · [Harga](https://karyon.lifistudio.com/pricing) · [Blog](https://karyon.lifistudio.com/blog)
 
@@ -85,12 +85,9 @@ Database baru yang masih kosong tidak berisi akun. Buat superadmin dengan `docke
 ### Upgrade ke Pro
 
 1. Beli lisensi di [halaman harga](https://karyon.lifistudio.com/pricing). License key muncul di dashboard pelanggan setelah pembayaran terkonfirmasi.
-2. Di HRIS, masuk sebagai superadmin, buka **Lisensi & Paket**, tempel license key, lalu klik **Aktifkan**.
-3. Klik **Aktifkan fitur Pro**. Halaman menampilkan progresnya; ada restart singkat, data dan akun tidak berubah.
+2. Di HRIS, masuk sebagai superadmin, buka **Lisensi & Paket**, tempel license key, lalu klik **Aktifkan**. Fitur Pro langsung terbuka di image resmi `ghcr.io/lifistudio/hris`, tanpa restart dan tanpa mengubah data.
 
-Instalasi lama yang belum memiliki pengelola upgrade akan menampilkan **Perbarui installer sekali**: jalankan installer terbaru di folder instalasi, atau salin perintah upgrade yang ditampilkan (berlaku 15 menit). License key bisa diganti atau dilepas dari menu yang sama saat pindah server.
-
-Opsi `--lifecycle` (Pro, khusus server Linux) menambahkan backup, update, dan rollback terjadwal. Opsi ini memerlukan akses penuh ke Docker di server, jadi mati secara default.
+License key bisa diganti atau dilepas dari menu yang sama saat pindah server. Halaman yang sama juga menampilkan versi terbaru dengan tombol **Perbarui** dan **Kembalikan versi**. Image yang dibangun dari source repo ini adalah edisi Community; fitur Pro hanya tersedia di image resmi.
 
 ## Logo
 
@@ -215,6 +212,10 @@ Setelah mengubah `install.sh`, `install.ps1`, atau file compose, jalankan `node 
 ## Deploy di Dokploy
 
 Ikuti [panduan Dokploy Raw Compose](docs/DOKPLOY-RAW-COMPOSE.md) atau bagian [Instalasi Dokploy](https://karyon.lifistudio.com/docs#dokploy) di dokumentasi. Pasang domain ke service `app` port `3000`, aktifkan HTTPS, isi `NEXTAUTH_URL` sesuai domain, dan `TRUST_PROXY=1`.
+
+## Lisensi
+
+Karyon HRIS Community dirilis dengan [GNU AGPL-3.0](LICENSE). Bebas dipakai untuk perusahaan sendiri, berapa pun jumlah karyawannya; versi yang dimodifikasi dan dijalankan sebagai layanan untuk pihak lain wajib membuka source-nya. Modul Pro tidak termasuk dan berlisensi komersial. Ringkasan dalam bahasa sehari-hari, aturan merek, dan kontribusi ada di [NOTICE.md](NOTICE.md).
 
 ## Kontribusi
 

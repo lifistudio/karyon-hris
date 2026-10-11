@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Copy, Eye, EyeOff, KeyRound, RotateCcw, Save, Shuffle } from "lucide-react";
+import { Copy, Eye, EyeOff, KeyRound, RotateCcw, Save, Shuffle } from "@/components/icons";
 import {
   Alert,
   Badge,

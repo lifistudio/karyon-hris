@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarHeart, Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarHeart, Pencil, Plus, Trash2 } from "@/components/icons";
 import {
   Alert,
   Badge,

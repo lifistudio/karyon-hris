@@ -11,8 +11,8 @@ import { createPortal } from "react-dom";
  *
  * Mouse only: touch users long-press, which already selects the text.
  */
-const DELAY = 650;
-const MAX_DEPTH = 4;
+const DELAY = 350;
+const MAX_DEPTH = 5;
 const SKIP = "input, textarea, select, [contenteditable='true'], [data-no-tooltip]";
 
 function clipped(el: HTMLElement) {

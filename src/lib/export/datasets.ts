@@ -1,7 +1,7 @@
 import { RecordId } from "@/lib/postgres";
 import { employeeRecordScopeFilter, Forbidden, scopeFilter, type GuardContext } from "@/lib/guard";
 import { decrypt, maskTail } from "@/lib/crypto";
-import { formatDate, formatDateTime, formatPeriod, wibEndOfMonth, wibStartOfMonth } from "@/lib/time";
+import { formatDate, formatDateTime, formatPeriod, wibEndOfMonth, wibStartOfMonth, timezoneName } from "@/lib/time";
 import {
   CORRECTION_REASON_LABELS, EMPLOYEE_STATUS_LABELS, EMPLOYMENT_STATUS_LABELS, INVENTORY_CATEGORY_LABELS, INVENTORY_CONDITION_LABELS,
 } from "@/lib/hr/labels";
@@ -31,7 +31,7 @@ type Populated = { name?: string; employeeId?: string; branchId?: { name?: strin
 const emp = (value: unknown) => value as Populated;
 const named = (value: unknown) => (value as { name?: string } | null)?.name ?? "";
 const time = (value: Date | null | undefined) =>
-  value ? new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value)) : "";
+  value ? new Intl.DateTimeFormat("id-ID", { timeZone: timezoneName(), hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value)) : "";
 const yes = (value: unknown) => (value ? "Ya" : "Tidak");
 
 export async function buildExport(dataset: ExportDataset, params: ExportParams, ctx: GuardContext): Promise<ExportTable> {

@@ -2,22 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  Bell,
-  BriefcaseBusiness,
-  CakeSlice,
-  CalendarCheck2,
-  CheckCheck,
-  ClipboardCheck,
-  Clock3,
-  FileSignature,
-  LoaderCircle,
-  MessageSquareWarning,
-  Package,
-  ReceiptText,
-  Settings2,
-  X,
-} from "lucide-react";
+import { Bell, BriefcaseBusiness, CakeSlice, CalendarCheck2, CheckCheck, ClipboardCheck, Clock3, FileSignature, LoaderCircle, MessageSquareWarning, Package, ReceiptText, Settings2, X } from "@/components/icons";
 import { api } from "@/lib/client-api";
 import { formatRelative, wibDateKey } from "@/lib/time";
 import { cn, EmptyState, ICON_STROKE, type IconType } from "@/components/ui";
@@ -176,34 +161,34 @@ export function NotificationBell() {
             role="dialog"
             aria-label="Notifikasi"
             className={cn(
-              "card z-[80] overflow-hidden flex flex-col",
+              "z-[80] overflow-hidden flex flex-col bg-background-primary-default border border-border-button-default",
               isSheet
-                ? "fixed inset-x-0 bottom-0 rounded-b-none max-h-[85dvh] pb-[env(safe-area-inset-bottom)] animate-[sheet-in_160ms_ease-out]"
-                : "absolute right-0 mt-2 w-[25rem] max-h-[34rem] animate-[pop-in_120ms_ease-out]"
+                ? "fixed inset-x-0 bottom-0 rounded-t-[28px] max-h-[85dvh] pb-[env(safe-area-inset-bottom)] animate-[sheet-in_160ms_ease-out]"
+                : "absolute right-0 mt-2 w-[26rem] max-h-[36rem] rounded-[28px] animate-[pop-in_120ms_ease-out]"
             )}
             style={{ boxShadow: "var(--shadow-pop)" }}
           >
-            <div className="flex items-center justify-between gap-3 px-4 pt-3.5 pb-3 border-b border-line">
-              <p className="text-body font-semibold text-heading">Notifikasi</p>
+            <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-2">
+              <p className="text-title-sm font-semibold text-heading">Notifikasi</p>
               <div className="flex items-center gap-1">
                 {unread > 0 && (
                   <button
                     onClick={markAll}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-md text-label font-medium text-primary hover:bg-primary-soft cursor-pointer"
+                    className="flex h-8 items-center gap-1.5 px-3 rounded-full text-body-sm font-medium text-primary hover:bg-primary-soft cursor-pointer"
                   >
                     <CheckCheck className="w-3.5 h-3.5" strokeWidth={ICON_STROKE} />
                     Tandai semua dibaca
                   </button>
                 )}
                 {isSheet && (
-                  <button onClick={() => setOpen(false)} aria-label="Tutup" className="p-1.5 rounded-md text-subtle hover:bg-surface-2 cursor-pointer">
+                  <button onClick={() => setOpen(false)} aria-label="Tutup" className="icon-close">
                     <X className="w-4 h-4" strokeWidth={ICON_STROKE} />
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="flex gap-1 px-4 py-2 border-b border-line" role="tablist">
+            <div className="mx-5 mb-2 inline-flex w-fit gap-1 rounded-full bg-background-secondary-default p-1" role="tablist">
               {[
                 { id: false, label: "Semua" },
                 { id: true, label: `Belum dibaca${unread ? ` (${unread})` : ""}` },
@@ -217,8 +202,8 @@ export function NotificationBell() {
                     setOnlyUnread(t.id);
                   }}
                   className={cn(
-                    "px-2.5 py-1 rounded-full text-label font-medium transition-colors cursor-pointer",
-                    onlyUnread === t.id ? "bg-primary-soft text-primary" : "text-muted hover:bg-surface-2"
+                    "h-8 px-3.5 rounded-full text-body-sm font-medium transition-colors cursor-pointer",
+                    onlyUnread === t.id ? "bg-background-primary-default text-heading shadow-xs" : "text-muted hover:text-foreground"
                   )}
                 >
                   {t.label}
@@ -226,7 +211,7 @@ export function NotificationBell() {
               ))}
             </div>
 
-            <div className="flex-1 overflow-y-auto overscroll-contain">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-2">
               {loading ? (
                 <div className="flex items-center justify-center py-10 text-muted">
                   <LoaderCircle className="w-5 h-5 animate-spin" strokeWidth={ICON_STROKE} />
@@ -238,7 +223,7 @@ export function NotificationBell() {
                   description="Persetujuan yang menunggu Anda, hasil pengajuan, slip gaji, jadwal wawancara, dan pengingat presensi muncul di sini."
                 />
               ) : (
-                <ul>
+                <ul className="space-y-1.5">
                   {items.map((n, index) => {
                     const kind = KIND[n.kind] ?? KIND.system;
                     const group = dayLabel(n.createdAt);
@@ -246,16 +231,16 @@ export function NotificationBell() {
                     const Icon = kind.icon;
 
                     const content = (
-                      <div className={cn("flex gap-3 px-4 py-3 transition-colors hover:bg-surface-2/70", !n.isRead && "bg-primary-soft/35")}>
-                        <span className={cn("grid place-items-center w-8 h-8 rounded-[10px] shrink-0", kind.tone)} aria-hidden>
+                      <div className={cn("flex gap-3 rounded-2xl px-3.5 py-3.5 transition-colors", n.isRead ? "hover:bg-background-secondary-default" : "bg-background-secondary-default hover:bg-background-secondary-hover")}>
+                        <span className={cn("grid place-items-center size-9 rounded-full shrink-0", kind.tone)} aria-hidden>
                           <Icon className="w-4 h-4" strokeWidth={ICON_STROKE} />
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className={cn("text-body-sm leading-snug", n.isRead ? "text-foreground/80" : "text-heading font-semibold")}>
                             {n.title}
                           </p>
-                          {n.body && <p className="text-label text-muted mt-0.5 leading-relaxed line-clamp-3">{n.body}</p>}
-                          <p className="text-caption text-subtle mt-1">
+                          {n.body && <p className="text-body-sm text-muted mt-0.5 leading-relaxed line-clamp-3">{n.body}</p>}
+                          <p className="text-label text-subtle mt-1">
                             {kind.label} · {formatRelative(n.createdAt)}
                           </p>
                         </div>
@@ -266,7 +251,7 @@ export function NotificationBell() {
                     return (
                       <li key={n._id}>
                         {showGroup && (
-                          <p className="px-4 pt-3 pb-1 text-caption font-semibold uppercase tracking-wider text-subtle">{group}</p>
+                          <p className="px-3 pt-3 pb-1 text-label font-medium text-subtle">{group}</p>
                         )}
                         {n.href ? (
                           <Link
@@ -291,11 +276,11 @@ export function NotificationBell() {
               )}
 
               {!loading && items.length < total && (
-                <div className="p-3 border-t border-line">
+                <div className="p-1">
                   <button
                     onClick={loadMore}
                     disabled={loadingMore}
-                    className="w-full h-9 rounded-[var(--radius-control)] text-body-sm font-medium text-primary hover:bg-primary-soft transition-colors cursor-pointer disabled:opacity-60"
+                    className="w-full h-10 rounded-full bg-background-secondary-default text-body-sm font-medium text-heading hover:bg-background-secondary-hover transition-colors cursor-pointer disabled:opacity-60"
                   >
                     {loadingMore ? "Memuat…" : "Muat notifikasi sebelumnya"}
                   </button>

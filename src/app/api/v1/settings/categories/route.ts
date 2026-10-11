@@ -5,7 +5,11 @@ import { logActivity } from "@/lib/audit/logger";
 import Setting from "@/models/Setting";
 import { connectToDatabase } from "@/lib/db";
 
-export const GET = wrapRouteHandler(async (req) => {
+export const GET = wrapRouteHandler(async () => {
+  const session = await auth();
+  if (!session?.user) {
+    return apiError("UNAUTHORIZED", "Anda harus login untuk mengakses data ini", null, 401);
+  }
   await connectToDatabase();
 
   let setting = await Setting.findOne({ key: "inventory_categories" });
@@ -40,6 +44,11 @@ export const POST = wrapRouteHandler(async (req) => {
   if (!categories || !Array.isArray(categories)) {
     return apiError("BAD_REQUEST", "Data kategori harus berupa array");
   }
+  // Keys are stored on each asset, so keep them short, unique and non-empty.
+  const clean = [...new Set(categories.filter((c): c is string => typeof c === "string").map((c) => c.trim().slice(0, 40)).filter(Boolean))];
+  if (!clean.length || clean.length > 50) {
+    return apiError("BAD_REQUEST", "Isi 1 sampai 50 kategori");
+  }
 
   await connectToDatabase();
 
@@ -48,12 +57,12 @@ export const POST = wrapRouteHandler(async (req) => {
 
   if (setting) {
     oldVal = [...setting.value];
-    setting.value = categories;
+    setting.value = clean;
     await setting.save();
   } else {
     setting = await Setting.create({
       key: "inventory_categories",
-      value: categories,
+      value: clean,
       description: "Daftar kategori barang inventaris GA"
     });
   }
@@ -64,7 +73,7 @@ export const POST = wrapRouteHandler(async (req) => {
     action: "UPDATE_INVENTORY_CATEGORIES",
     module: "settings",
     before: oldVal ? { categories: oldVal } : null,
-    after: { categories },
+    after: { categories: clean },
     ip: req.headers.get("x-forwarded-for") || "127.0.0.1",
     userAgent: req.headers.get("user-agent") || ""
   });

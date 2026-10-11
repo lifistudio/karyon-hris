@@ -1,15 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  CircleAlert,
-  CircleCheck,
-  Info,
-  Inbox,
-  LoaderCircle,
-  TriangleAlert,
-  X,
-} from "lucide-react";
+import { CircleAlert, CircleCheck, Info, Inbox, LoaderCircle, TriangleAlert, X } from "@/components/icons";
 
 import { cn, ICON_STROKE, type IconType } from "./core";
 import { Combobox, type ComboboxOption } from "./Combobox";
@@ -33,7 +25,7 @@ type ButtonVariant =
 type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-primary text-primary-foreground hover:bg-primary-hover",
+  primary: "bg-button-primary text-white shadow-xs disabled:opacity-100 disabled:text-button-primary-disabled-foreground disabled:shadow-none",
   /* Gold. Reserved for the single most important action on a screen. */
   accent: "bg-accent text-accent-foreground hover:bg-accent-hover",
   secondary: "bg-surface text-foreground border border-line hover:bg-surface-2 hover:border-line-strong",
@@ -96,6 +88,35 @@ export function Button({
   );
 }
 
+/** A link that looks like a Button — never nest a <button> inside an <a>. */
+export function ButtonLink({
+  variant = "primary",
+  size = "md",
+  icon: Icon,
+  iconRight: IconRight,
+  className,
+  children,
+  ...rest
+}: React.AnchorHTMLAttributes<HTMLAnchorElement> & { variant?: ButtonVariant; size?: ButtonSize; icon?: IconType; iconRight?: IconType }) {
+  return (
+    <a
+      {...rest}
+      className={cn(
+        "inline-flex items-center rounded-[var(--radius-control)] font-semibold tracking-[-0.01em]",
+        "transition-[background-color,border-color,color,filter,box-shadow,transform] duration-200 ease-out active:scale-[0.97] hover:shadow-[var(--shadow-raise)]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] whitespace-nowrap select-none",
+        buttonVariants[variant],
+        buttonSizes[size],
+        className
+      )}
+    >
+      {Icon && <Icon className="w-4 h-4 shrink-0" strokeWidth={ICON_STROKE} />}
+      {children}
+      {IconRight && <IconRight className="w-4 h-4 shrink-0" strokeWidth={ICON_STROKE} />}
+    </a>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Icon tile                                                           */
 /* ------------------------------------------------------------------ */
@@ -145,11 +166,16 @@ export function Card({ className, children, ...rest }: React.HTMLAttributes<HTML
   );
 }
 
+/** BoardUI card headers carry a plain title; an icon, when given, is a quiet inline glyph. */
+function IconGlyph({ icon: Icon }: { icon: IconType }) {
+  return <Icon className="mt-0.5 w-5 h-5 shrink-0 text-subtle" strokeWidth={ICON_STROKE} aria-hidden />;
+}
+
 export function CardHeader({
   title,
   description,
   icon,
-  tone = "primary",
+  tone: _tone,
   actions,
   className,
 }: {
@@ -163,12 +189,12 @@ export function CardHeader({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-4 border-b border-line",
+        "flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 pt-4 pb-1 sm:px-5 sm:pt-5",
         className
       )}
     >
-      <div className="flex items-start gap-3 min-w-0">
-        {icon && <IconTile icon={icon} tone={tone} size="sm" className="mt-0.5" />}
+      <div className="flex items-start gap-2.5 min-w-0">
+        {icon && <IconGlyph icon={icon} />}
         <div className="min-w-0">
           <h2 className="text-body-lg font-semibold text-heading truncate">{title}</h2>
           {description && (
@@ -183,7 +209,7 @@ export function CardHeader({
 
 export function CardBody({ className, children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div {...rest} className={cn("p-5", className)}>
+    <div {...rest} className={cn("p-4 sm:p-5", className)}>
       {children}
     </div>
   );
@@ -194,11 +220,12 @@ export function CardBody({ className, children, ...rest }: React.HTMLAttributes<
 /* ------------------------------------------------------------------ */
 
 export function PageHeader({
-  eyebrow,
+  eyebrow: _eyebrow,
   title,
   description,
   actions,
 }: {
+  /** @deprecated Not shown: headings carry the page on their own. */
   eyebrow?: string;
   title: string;
   description?: string;
@@ -207,7 +234,6 @@ export function PageHeader({
   return (
     <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 mb-7">
       <div className="min-w-0">
-        {eyebrow && <p className="eyebrow mb-2">{eyebrow}</p>}
         <h1 className="text-display-sm md:text-display text-heading">{title}</h1>
         {description && (
           <p className="text-body text-muted mt-2 max-w-2xl leading-relaxed">{description}</p>
@@ -222,10 +248,13 @@ export function PageHeader({
 /* Form fields                                                         */
 /* ------------------------------------------------------------------ */
 
+/* BoardUI field: a filled control with no resting border; focus draws the
+   accent ring. Reads as one quiet surface inside a card, like iOS forms. */
 const fieldBase =
-  "w-full rounded-[var(--radius-control)] bg-surface border border-line px-3.5 text-body text-foreground " +
-  "placeholder:text-subtle transition-colors hover:border-line-strong focus:border-primary " +
-  "disabled:opacity-55 disabled:cursor-not-allowed";
+  "w-full rounded-[var(--radius-control)] bg-[var(--field-bg)] border border-transparent px-3.5 text-body text-foreground " +
+  "placeholder:text-subtle outline-none transition-[background-color,box-shadow,border-color] duration-150 " +
+  "hover:bg-[var(--field-bg-hover)] focus:bg-surface focus:border-line focus:ring-2 focus:ring-[var(--ring)] " +
+  "aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-danger disabled:opacity-55 disabled:cursor-not-allowed";
 
 export function Field({
   label,
@@ -269,7 +298,7 @@ export const Input = React.forwardRef<
   HTMLInputElement,
   React.InputHTMLAttributes<HTMLInputElement>
 >(function Input({ className, ...rest }, ref) {
-  return <input ref={ref} {...rest} className={cn(fieldBase, "h-11", className)} />;
+  return <input ref={ref} {...rest} className={cn(fieldBase, "h-10", className)} />;
 });
 
 export const Textarea = React.forwardRef<
@@ -665,27 +694,27 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={cn("card w-full my-auto animate-fade-up", widths)}
+        className={cn("w-full my-auto animate-fade-up rounded-[28px] bg-background-primary-default p-1.5 border border-border-button-default", widths)}
         style={{ boxShadow: "var(--shadow-pop)" }}
       >
-        <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-line">
+        <div className="flex items-start justify-between gap-4 px-5 pt-5 pb-3">
           <div className="min-w-0">
-            <h2 className="text-body-lg font-semibold text-heading">{title}</h2>
+            <h2 className="text-title-sm font-semibold text-heading">{title}</h2>
             {description && (
-              <p className="text-body-sm text-muted mt-1 leading-relaxed">{description}</p>
+              <p className="text-body text-muted mt-1 leading-relaxed">{description}</p>
             )}
           </div>
           <button
             onClick={onClose}
             aria-label="Tutup"
-            className="p-1.5 rounded-lg text-subtle hover:text-foreground hover:bg-surface-2 cursor-pointer shrink-0 transition-colors"
+            className="grid size-8 place-items-center rounded-full bg-background-secondary-default text-subtle hover:text-foreground hover:bg-background-secondary-hover cursor-pointer shrink-0 transition-colors"
           >
             <X className="w-4 h-4" strokeWidth={ICON_STROKE} />
           </button>
         </div>
-        <div className="p-5 max-h-[68vh] overflow-y-auto">{children}</div>
+        <div className="px-5 pt-2 pb-5 max-h-[68vh] overflow-y-auto">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-line bg-surface-2/60 rounded-b-[var(--radius)]">
+          <div className="flex flex-wrap items-center justify-end gap-2 rounded-[22px] bg-background-secondary-default px-4 py-3">
             {footer}
           </div>
         )}
@@ -743,7 +772,7 @@ export function ConfirmDialog({
 export function TableWrap({ children }: { children: React.ReactNode }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-body border-collapse min-w-[680px]">{children}</table>
+      <table className="w-full text-body border-collapse min-w-[800px]">{children}</table>
     </div>
   );
 }
@@ -752,7 +781,7 @@ export function Th({ children, className }: { children?: React.ReactNode; classN
   return (
     <th
       className={cn(
-        "text-left text-label font-semibold text-subtle px-5 py-3 bg-surface-2/60 border-b border-line whitespace-nowrap first:rounded-tl-[var(--radius)] last:rounded-tr-[var(--radius)]",
+        "text-left text-label font-semibold text-subtle px-5 py-3 bg-surface-2/60 border-b border-line whitespace-nowrap first:rounded-tl-[var(--radius-card)] last:rounded-tr-[var(--radius-card)]",
         className
       )}
     >
@@ -776,30 +805,76 @@ export function Tr({ children, className }: { children: React.ReactNode; classNa
 /* Stat tile                                                           */
 /* ------------------------------------------------------------------ */
 
+/** Counts a number up once when it scrolls into view; non-numbers render as-is. */
+export function CountUpValue({ value }: { value: React.ReactNode }) {
+  const ref = React.useRef<HTMLSpanElement>(null);
+  const target = typeof value === "number" && Number.isFinite(value) ? value : null;
+  const [shown, setShown] = React.useState<number | null>(target === null ? null : 0);
+  React.useEffect(() => {
+    if (target === null) return;
+    const node = ref.current;
+    if (!node || window.matchMedia("(prefers-reduced-motion: reduce)").matches) { queueMicrotask(() => setShown(target)); return; }
+    let frame = 0;
+    const io = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      io.disconnect();
+      const start = performance.now();
+      const tick = (now: number) => {
+        const p = Math.min(1, (now - start) / 900);
+        setShown(target * (1 - Math.pow(2, -10 * p)));
+        if (p < 1) frame = requestAnimationFrame(tick);
+      };
+      frame = requestAnimationFrame(tick);
+    });
+    io.observe(node);
+    return () => { io.disconnect(); cancelAnimationFrame(frame); };
+  }, [target]);
+  if (target === null) return <>{value}</>;
+  const decimals = Number.isInteger(target) ? 0 : 1;
+  return <span ref={ref}>{(shown ?? target).toLocaleString("id-ID", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}</span>;
+}
+
+const DELTA_TONE = {
+  up: "bg-status-lime-background text-status-lime-text",
+  down: "bg-status-rose-background text-status-rose-text",
+  neutral: "bg-background-tertiary-default text-muted",
+} as const;
+
+/**
+ * KPI tile in BoardUI's dashboard style: a grey tile, a white icon square,
+ * the label, a large medium-weight number, and an optional delta chip.
+ */
 export function StatCard({
   label,
   value,
   hint,
-  icon,
-  tone = "primary",
+  icon: Icon,
+  delta,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
   icon?: IconType;
+  /** @deprecated Kept for older callers; BoardUI tiles use a neutral icon square. */
   tone?: TileTone;
+  delta?: { value: string; tone?: keyof typeof DELTA_TONE };
 }) {
   return (
-    <div className="card p-5">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-body-sm font-medium text-muted">{label}</p>
-        {icon && <IconTile icon={icon} tone={tone} size="sm" />}
+    <section className="flex min-h-[124px] min-w-0 flex-col justify-between gap-3 rounded-2xl bg-surface-2 p-3.5 sm:p-4">
+      {Icon && (
+        <span className="inline-flex w-fit items-center rounded-md bg-stat-card-icon-background p-1.5">
+          <Icon className="w-5 h-5 text-heading" strokeWidth={ICON_STROKE} aria-hidden />
+        </span>
+      )}
+      <div className="min-w-0">
+        <p className="text-body font-medium text-muted">{label}</p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-2">
+          <p className="text-[1.75rem] leading-9 font-medium tracking-[-0.02em] text-heading tabular-nums"><CountUpValue value={value} /></p>
+          {delta && <span className={cn("rounded-md px-1.5 py-0.5 text-label font-semibold tabular-nums", DELTA_TONE[delta.tone ?? "neutral"])}>{delta.value}</span>}
+        </div>
+        {hint && <p className="text-body-sm text-subtle mt-1 leading-relaxed">{hint}</p>}
       </div>
-      <p className="text-display-sm font-semibold text-heading mt-3 tabular-nums leading-none tracking-[-0.02em]">
-        {value}
-      </p>
-      {hint && <p className="text-label text-subtle mt-2.5 leading-relaxed">{hint}</p>}
-    </div>
+    </section>
   );
 }
 
@@ -819,7 +894,7 @@ export function Tabs<T extends string>({
   return (
     <div
       role="tablist"
-      className="flex gap-1 p-1 rounded-[var(--radius-control)] bg-surface-2 border border-line overflow-x-auto"
+      className="inline-flex max-w-full gap-1 p-1 rounded-full bg-background-secondary-default overflow-x-auto"
     >
       {tabs.map((t) => {
         const active = t.id === value;
@@ -830,10 +905,10 @@ export function Tabs<T extends string>({
             aria-selected={active}
             onClick={() => onChange(t.id)}
             className={cn(
-              "flex items-center gap-2 px-3.5 py-2 rounded-lg text-body-sm font-medium transition-colors cursor-pointer whitespace-nowrap",
+              "flex h-9 items-center gap-2 px-4 rounded-full text-body-sm font-medium transition-colors cursor-pointer whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
               active
-                ? "bg-surface text-heading font-semibold border border-line"
-                : "text-muted hover:text-foreground border border-transparent"
+                ? "bg-background-primary-default text-heading shadow-xs"
+                : "text-muted hover:text-foreground"
             )}
           >
             {t.icon && <t.icon className="w-4 h-4" strokeWidth={ICON_STROKE} />}

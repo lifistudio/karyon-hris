@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { CalendarPlus, CloudDownload, PartyPopper, Trash2 } from "lucide-react";
+import { CalendarPlus, CloudDownload, PartyPopper, Trash2 } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -89,7 +89,7 @@ export default function HolidaysPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-display-sm md:text-display text-heading">Hari Libur Nasional</h1>
+          <h1 className="text-display-sm md:text-display text-heading">Hari libur nasional</h1>
           <p className="text-body text-muted mt-2 leading-relaxed">
             Menentukan hari mana yang tidak memotong saldo cuti dan mana yang dapat ditukar libur.
           </p>

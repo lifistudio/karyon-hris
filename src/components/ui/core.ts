@@ -1,3 +1,4 @@
+import type { IconComponent } from "@/components/icons";
 import type React from "react";
 
 /**
@@ -20,4 +21,5 @@ export function cn(...parts: Array<string | false | null | undefined>) {
  */
 export const ICON_STROKE = 1.75;
 
-export type IconType = React.ComponentType<{ className?: string; strokeWidth?: number }>;
+/** Any icon from "@/components/icons" (Remix Icon). */
+export type IconType = IconComponent;

@@ -2,21 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  Ban,
-  CalendarPlus,
-  CheckCircle2,
-  ExternalLink,
-  FileSignature,
-  FileText,
-  Pencil,
-  Printer,
-  RotateCcw,
-  Trash2,
-  Undo2,
-  UserCheck,
-  XCircle,
-} from "lucide-react";
+import { Ban, CalendarPlus, CheckCircle2, ExternalLink, FileSignature, FileText, Pencil, Printer, RotateCcw, Trash2, Undo2, UserCheck, XCircle } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -45,7 +31,7 @@ import {
   type ContractStatus,
   type ContractType,
 } from "@/lib/hr/contracts";
-import { formatDate, formatRupiah, wibDateKey } from "@/lib/time";
+import { formatDate, formatRupiah, wibDateKey, isoOffset } from "@/lib/time";
 import type { ContractFormInitial } from "./ContractForm";
 
 interface Detail {
@@ -165,7 +151,7 @@ export function ContractDetail({
     if (!permanent && c.endDate) {
       // Same length as the contract being renewed.
       const lengthMs = new Date(c.endDate).getTime() - new Date(c.startDate).getTime();
-      end = wibDateKey(new Date(new Date(`${start}T00:00:00+07:00`).getTime() + lengthMs));
+      end = wibDateKey(new Date(new Date(`${start}T00:00:00${isoOffset()}`).getTime() + lengthMs));
     }
     onCreateFollowUp({
       employeeId: c.employeeId?._id,
@@ -180,7 +166,7 @@ export function ContractDetail({
       previousContractId: c._id,
       title: permanent ? "Angkat jadi karyawan tetap" : "Perpanjang kontrak",
       note: permanent
-        ? `Kontrak PKWTT mulai ${formatDate(`${start}T00:00:00+07:00`)}, sehari setelah ${c.contractNumber} berakhir.`
+        ? `Kontrak PKWTT mulai ${formatDate(`${start}T00:00:00${isoOffset()}`)}, sehari setelah ${c.contractNumber} berakhir.`
         : `Kontrak lanjutan dengan lama yang sama seperti ${c.contractNumber}. Ubah tanggal atau gaji bila ada kesepakatan baru.`,
     });
   };

@@ -3,16 +3,7 @@ import { wrapRouteHandler, apiSuccess } from "@/lib/api";
 import { requireUser } from "@/lib/guard";
 import { checkPermission } from "@/lib/rbac";
 import { holidayMap } from "@/lib/hr/calendar";
-import {
-  eachDayKey,
-  isWeekendKey,
-  wibDateKey,
-  wibEndOfDay,
-  wibEndOfMonth,
-  wibPeriodKey,
-  wibStartOfDay,
-  wibStartOfMonth,
-} from "@/lib/time";
+import { eachDayKey, isWeekendKey, wibDateKey, wibEndOfDay, wibEndOfMonth, wibPeriodKey, wibStartOfDay, wibStartOfMonth, timezoneName } from "@/lib/time";
 import Employee from "@/models/Employee";
 import Attendance from "@/models/Attendance";
 import ApprovalInstance from "@/models/ApprovalInstance";
@@ -97,7 +88,7 @@ export const GET = wrapRouteHandler(async (req) => {
       $group: {
         // Bucket by WIB calendar day, not by the server's timezone.
         _id: {
-          $dateToString: { format: "%Y-%m-%d", date: "$date", timezone: "Asia/Jakarta" },
+          $dateToString: { format: "%Y-%m-%d", date: "$date", timezone: timezoneName() },
         },
         present: { $sum: { $cond: [{ $ifNull: ["$clockIn", false] }, 1, 0] } },
         late: { $sum: { $cond: ["$isLate", 1, 0] } },

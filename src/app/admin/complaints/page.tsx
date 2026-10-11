@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/ui/Pagination";
-import { EyeOff, Lock, MessageSquareWarning, Paperclip, User } from "lucide-react";
+import { EyeOff, Lock, MessageSquareWarning, Paperclip, User } from "@/components/icons";
 import {
   Alert,
   Badge,
@@ -104,7 +104,7 @@ export default function AdminComplaintsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-display-sm md:text-display text-heading">Pengaduan Karyawan</h1>
+        <h1 className="text-display-sm md:text-display text-heading">Pengaduan karyawan</h1>
         <p className="text-body text-muted mt-2 leading-relaxed">
           Tindak lanjuti laporan yang ditujukan kepada peran Anda.
         </p>
@@ -124,7 +124,7 @@ export default function AdminComplaintsPage() {
           setPage(1);
         }}
         tabs={[
-          { id: "open", label: "Perlu Ditangani", count: counts.open, icon: MessageSquareWarning },
+          { id: "open", label: "Perlu ditangani", count: counts.open, icon: MessageSquareWarning },
           { id: "closed", label: "Selesai", count: counts.closed },
         ]}
       />
