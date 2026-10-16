@@ -8,6 +8,9 @@ export interface ApiMeta {
   limit?: number;
   total?: number;
   totalPages?: number;
+  /** Period-scoped lists (e.g. inventory checks) report the period and its counts. */
+  period?: string;
+  summary?: Record<string, number>;
 }
 
 export interface ApiResponse<T = unknown> {

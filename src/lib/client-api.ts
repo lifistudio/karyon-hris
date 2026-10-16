@@ -22,7 +22,7 @@ export interface ApiEnvelope<T> {
   success: boolean;
   data?: T;
   message?: string;
-  meta?: { page?: number; limit?: number; total?: number; totalPages?: number };
+  meta?: { page?: number; limit?: number; total?: number; totalPages?: number; period?: string; summary?: Record<string, number> };
   error?: { code: string; message: string; details?: unknown };
 }
 

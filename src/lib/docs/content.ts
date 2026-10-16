@@ -1353,6 +1353,29 @@ export const CHAPTERS: DocChapter[] = [
     id: "admin",
     title: "Administrasi Sistem",
     sections: [
+      { id: "inventaris", title: "Inventaris: serah terima dan pengecekan bulanan", summary: "Kondisi awal, BAST digital, cek bulanan dibanding kondisi awal, dan pengembalian.", audience: ["GA", "AUDIT", "SUPERADMIN"], blocks: [
+        { type: "steps", items: [
+          "Daftarkan aset di Inventaris & aset → Tambah aset. Isi kode (dicetak sebagai barcode), kategori, dan spesifikasi. Kolom spesifikasi mengikuti kategori: laptop meminta nomor seri, RAM, penyimpanan; kendaraan meminta nomor polisi, rangka, mesin, dan odometer.",
+          "Catat kondisi awal saat itu juga: kondisi umum dan daftar periksa per poin (misalnya layar, baterai, ban). Kondisi awal disimpan permanen dan menjadi pembanding setiap pengecekan.",
+          "Serahkan aset: pilih karyawan, periksa kembali kondisinya, dan tulis kelengkapan (charger, tas, kunci). Karyawan menerima notifikasi.",
+          "Karyawan membuka Inventaris saya di portal, mencocokkan aset fisik dengan catatan, lalu menandatangani BAST. Bila ada yang berbeda, karyawan memilih Laporkan tidak sesuai; GA membatalkan lalu menyerahkan ulang setelah diperbaiki.",
+          "Setiap bulan, buka Pindai & cek (barcode, kamera, atau ketik kode) atau ikon cek di tabel. Isi kondisi sekarang, daftar periksa, cocokkan spesifikasi, dan angka seperti odometer. Kartu Cek bulan ini menunjukkan berapa aset yang sudah dicek.",
+          "Saat aset dikembalikan, pilih Terima pengembalian dan catat kondisinya. Sistem menandai bila kondisi berbeda dari saat diserahkan.",
+        ] },
+        { type: "table", head: ["Status", "Artinya"], rows: [
+          ["Tersedia", "Tidak dipegang siapa pun dan dapat diserahkan."],
+          ["Menunggu tanda tangan", "Sudah diserahkan, karyawan belum menandatangani BAST."],
+          ["Dilaporkan tidak sesuai", "Karyawan menolak menandatangani dan menjelaskan alasannya."],
+          ["Dipegang karyawan", "BAST sudah ditandatangani; karyawan bertanggung jawab atas aset."],
+        ] },
+        { type: "list", items: [
+          "Pengecekan bulanan hanya sekali per aset per bulan. Untuk cek ulang di bulan yang sama, pilih jenis Insidental.",
+          "Pengecekan ditandai Ada temuan bila kondisi lebih buruk dari kondisi awal, ada poin bermasalah, spesifikasi tidak cocok, atau angka odometer mundur.",
+          "Detail aset menampilkan spesifikasi, kondisi awal, linimasa semua pengecekan (kondisi sebelum → sesudah), dan riwayat serah terima beserta tanda tangan.",
+          "Kolom spesifikasi dan daftar periksa setiap kategori diatur di tombol Kategori.",
+        ] },
+        { type: "note", tone: "info", text: "Kondisi aset tidak diubah dari formulir Ubah data. Perubahan kondisi selalu lewat pengecekan, serah terima, atau pengembalian sehingga setiap perubahan punya jejak." },
+      ] },
       {
         id: "pengaturan",
         title: "Mengubah aturan bisnis",

@@ -1,88 +1,59 @@
-import { auth } from "@/auth";
-import { wrapRouteHandler, apiSuccess, apiError } from "@/lib/api";
-import { checkPermission } from "@/lib/rbac";
-import { logActivity } from "@/lib/audit/logger";
+import { wrapRouteHandler, apiSuccess } from "@/lib/api";
+import { requirePermission, BadRequest } from "@/lib/guard";
 import { connectToDatabase } from "@/lib/db";
+import { RecordId } from "@/lib/postgres";
+import { wibPeriodKey } from "@/lib/time";
 import AuditReport from "@/models/AuditReport";
 import Inventory from "@/models/Inventory";
-import "@/models/User"; // Ensure User model is loaded
+import InventoryAssignment from "@/models/InventoryAssignment";
+import { recordCheck } from "@/lib/inventory/server";
+import "@/models/User";
 
+/**
+ * Check history. `period=YYYY-MM` (default: this month) narrows the list and
+ * the summary tells how far the monthly round has got.
+ */
 export const GET = wrapRouteHandler(async (req) => {
-  const session = await auth();
-  if (!session?.user) {
-    return apiError("UNAUTHORIZED", "Anda harus login untuk mengakses data ini", null, 401);
-  }
-
-  // Allow both GA/Inventory managers and Audit roles
-  const perm = await checkPermission(session.user.id, "inventory", "read");
-  if (!perm.allowed) {
-    return apiError("FORBIDDEN", "Anda tidak memiliki izin untuk melihat riwayat audit", null, 403);
-  }
-
+  await requirePermission(req, "inventory", "read");
   await connectToDatabase();
 
-  const reports = await AuditReport.find({})
-    .populate("auditorId", "name email role")
-    .populate("inventoryId", "code name category")
-    .sort({ auditDate: -1 })
-    .lean();
+  const sp = new URL(req.url).searchParams;
+  const period = sp.get("period")?.trim() || wibPeriodKey();
+  if (!/^\d{4}-\d{2}$/.test(period)) throw BadRequest("Periode harus berformat YYYY-MM.");
+  const filter: Record<string, unknown> = { period };
+  const inventoryId = sp.get("inventoryId");
+  if (inventoryId) {
+    if (!RecordId.isValid(inventoryId)) throw BadRequest("ID aset tidak valid.");
+    filter.inventoryId = inventoryId;
+  }
 
-  return apiSuccess(reports, "Berhasil memuat riwayat laporan audit");
+  const [reports, totalAssets, monthlyDone, flagged, held, pending] = await Promise.all([
+    AuditReport.find(filter)
+      .populate("auditorId", "email")
+      .populate("inventoryId", "code name category")
+      .sort({ auditDate: -1 })
+      .limit(500)
+      .lean(),
+    // Lost assets cannot be checked, so they are not part of the round.
+    Inventory.countDocuments({ condition: { $ne: "lost" } }),
+    AuditReport.countDocuments({ period, type: "monthly" }),
+    AuditReport.countDocuments({ period, status: "flagged" }),
+    InventoryAssignment.countDocuments({ status: "active" }),
+    InventoryAssignment.countDocuments({ status: { $in: ["pending_handover", "disputed"] } }),
+  ]);
+
+  return apiSuccess(reports, "Berhasil memuat riwayat pengecekan", {
+    period,
+    summary: { totalAssets, monthlyDone, flagged, held, pending },
+  });
 });
 
 export const POST = wrapRouteHandler(async (req) => {
-  const session = await auth();
-  if (!session?.user) {
-    return apiError("UNAUTHORIZED", "Anda harus login untuk melakukan aksi ini", null, 401);
-  }
-
-  // Allow write access to inventory for submitting checks
-  const perm = await checkPermission(session.user.id, "inventory", "write");
-  if (!perm.allowed) {
-    return apiError("FORBIDDEN", "Anda tidak memiliki izin untuk menyimpan laporan audit", null, 403);
-  }
-
-  const body = await req.json();
-  const { inventoryId, condition, notes, status } = body;
-
-  if (!inventoryId || !condition) {
-    return apiError("BAD_REQUEST", "Data id aset dan kondisi wajib diisi");
-  }
-
-  await connectToDatabase();
-
-  // Find asset
-  const asset = await Inventory.findById(inventoryId);
-  if (!asset) {
-    return apiError("NOT_FOUND", "Aset inventaris tidak ditemukan");
-  }
-
-  const oldCondition = asset.condition;
-
-  // Create audit report record
-  const report = await AuditReport.create({
-    auditorId: session.user.id,
-    inventoryId,
-    condition,
-    notes: notes || "",
-    status: status || "verified",
-    auditDate: new Date()
-  });
-
-  // Update asset condition
-  asset.condition = condition;
-  await asset.save();
-
-  // Log activity
-  await logActivity({
-    userId: session.user.id,
-    action: "PHYSICAL_AUDIT_ASSET",
-    module: "inventory",
-    before: { code: asset.code, condition: oldCondition },
-    after: { code: asset.code, condition, notes, reportId: report._id },
-    ip: req.headers.get("x-forwarded-for") || "127.0.0.1",
-    userAgent: req.headers.get("user-agent") || ""
-  });
-
-  return apiSuccess(report, "Berhasil menyimpan laporan audit fisik aset");
+  const ctx = await requirePermission(req, "inventory", "write");
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object") throw BadRequest("Isi permintaan tidak valid.");
+  const report = await recordCheck(ctx, body);
+  return apiSuccess(report, report.status === "flagged"
+    ? "Pengecekan disimpan dan ditandai: ada temuan yang perlu ditindaklanjuti."
+    : "Pengecekan disimpan. Kondisi sesuai catatan.");
 });
