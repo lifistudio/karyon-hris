@@ -1353,7 +1353,26 @@ export const CHAPTERS: DocChapter[] = [
     id: "admin",
     title: "Administrasi Sistem",
     sections: [
-      { id: "inventaris", title: "Inventaris: serah terima dan pengecekan bulanan", summary: "Kondisi awal, BAST digital, cek bulanan dibanding kondisi awal, dan pengembalian.", audience: ["GA", "AUDIT", "SUPERADMIN"], blocks: [
+      { id: "task-harian", title: "Task harian sebagai syarat absen", summary: "Task tetap dan task dari atasan, bukti pekerjaan, serta aturan per divisi, jabatan, atau role.", audience: ["STAFF", "SPV", "HRD", "SUPERADMIN"], blocks: [
+        { type: "p", text: "Task harian dipakai bagi karyawan yang kerjanya perlu dibuktikan, misalnya sales. Karyawan di luar aturan tetap absen seperti biasa. Absen istirahat selalu opsional." },
+        { type: "steps", items: [
+          "HRD membuka Task harian → Aturan, lalu memilih divisi, jabatan, role, atau karyawan tertentu. Pilihan cabang membatasi aturan ke cabang itu.",
+          "Isi task tetap beserta buktinya (teks, foto atau berkas, tautan) dan harinya. Task tetap muncul otomatis di halaman presensi karyawan.",
+          "Atasan dapat menambah task untuk hari atau rentang tanggal tertentu lewat Beri task, sehingga task bisa berbeda tiap hari.",
+          "Setelah absen masuk, karyawan mengerjakan task dan mengirim bukti dari halaman presensi.",
+          "Absen pulang terbuka setelah semua task wajib selesai atau dibebaskan atasan.",
+        ] },
+        { type: "table", head: ["Pilihan aturan", "Artinya"], rows: [
+          ["Tahan absen pulang", "Absen pulang ditolak selama task wajib masih terbuka."],
+          ["Tidak dihitung hadir", "Bila task wajib masih terbuka saat jam kerja berakhir, statusnya Task belum selesai dan payroll Pro menghitungnya seperti alpha."],
+          ["Bukti perlu persetujuan atasan", "Task baru selesai setelah atasan menyetujui. Karyawan tertahan bila atasan belum meninjau."],
+        ] },
+        { type: "note", tone: "warning", title: "Siapkan jalan keluar", text: "Atasan adalah karyawan yang tercatat sebagai atasan, store manager, atau area manager, serta peran dengan izin Presensi tambah/ubah. Pastikan kolom atasan terisi agar ada yang bisa membebaskan task saat karyawan berhalangan." },
+        { type: "p", text: "Rekap task per bulan tersedia di Ekspor & impor data. Batas pengiriman bukti yang terlewat dan jam pengingat diatur di Pengaturan → Presensi." },
+      ] },
+      { id: "inventaris", title: "Inventaris: serah terima dan pengecekan bulanan", summary: "Kondisi awal, foto, BAST digital, cek bulanan, perbaikan, dan riwayat aset.", audience: ["GA", "AUDIT", "SUPERADMIN"], blocks: [
+        { type: "note", tone: "info", title: "Riwayat aset", text: "Tab Riwayat di detail aset memuat semua kejadian dalam satu linimasa: pendaftaran, serah terima, tanda tangan, pengecekan, perbaikan, penggantian komponen, laporan karyawan, dan pengembalian. Saat cek bulanan, pilih Sama, Diperbaiki, Diganti, atau Rusak per poin. Spesifikasi yang dipilih Diganti memperbarui catatan aset, sedangkan spesifikasi awal dan BAST yang sudah ditandatangani tidak berubah. Audit bulanan dapat diekspor lewat tombol Ekspor audit." },
+        { type: "note", tone: "info", title: "BAST kertas dan pindah aset", text: "Karyawan tanpa akun portal dapat menandatangani kertas dari Cetak BAST, lalu GA mengunggahnya lewat Unggah BAST kertas. Pindahkan menutup serah terima lama dan meminta penerima baru menandatangani, tanpa langkah pengembalian terpisah. Aset hilang yang ditemukan dicatat lewat Catat aset ditemukan." },
         { type: "steps", items: [
           "Daftarkan aset di Inventaris & aset → Tambah aset. Isi kode (dicetak sebagai barcode), kategori, dan spesifikasi. Kolom spesifikasi mengikuti kategori: laptop meminta nomor seri, RAM, penyimpanan; kendaraan meminta nomor polisi, rangka, mesin, dan odometer.",
           "Catat kondisi awal saat itu juga: kondisi umum dan daftar periksa per poin (misalnya layar, baterai, ban). Kondisi awal disimpan permanen dan menjadi pembanding setiap pengecekan.",

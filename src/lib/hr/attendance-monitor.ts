@@ -22,6 +22,7 @@ import LeaveRequest from "@/models/LeaveRequest";
 export type DailyStatus =
   | "present"      // clocked in on time
   | "late"         // clocked in late
+  | "incomplete"   // clocked in, but the day's required tasks were never finished
   | "leave"        // approved leave covers the day
   | "off"          // day off by roster/template or swap
   | "holiday"      // national holiday / collective leave
@@ -32,6 +33,7 @@ export type DailyStatus =
 export const DAILY_STATUS_LABEL: Record<DailyStatus, string> = {
   present: "Hadir",
   late: "Terlambat",
+  incomplete: "Task belum selesai",
   leave: "Izin/Cuti",
   off: "Libur",
   holiday: "Libur nasional",
@@ -55,6 +57,8 @@ export interface DailyRow {
   status: DailyStatus;
   schedule: { name: string; clockIn: string; clockOut: string; graceMinutes: number; startsAt: string; endsAt: string } | null;
   attendance: { clockIn: string | null; clockOut: string | null; lateMinutes: number; needsReview: boolean } | null;
+  /** Required tasks for the day; null for people without daily tasks. */
+  tasks: { total: number; pending: number } | null;
   note: string;
   /** Clocked in, shift over, never clocked out. */
   missingClockOut: boolean;
@@ -109,8 +113,8 @@ export async function dailyAttendance(options: {
           .populate("scheduleId")
           .lean<Array<{ employeeId: RecordId; isOffDay?: boolean; note?: string; scheduleId?: Template | null }>>(),
         Attendance.find({ employeeId: { $in: ids }, date: { $gte: dayStart, $lte: dayEnd } })
-          .select("employeeId clockIn clockOut isLate lateMinutes needsReview")
-          .lean<Array<{ employeeId: RecordId; clockIn?: Date; clockOut?: Date; isLate?: boolean; lateMinutes?: number; needsReview?: boolean }>>(),
+          .select("employeeId clockIn clockOut isLate lateMinutes needsReview tasksTotal tasksPending tasksCountAttendance")
+          .lean<Array<{ employeeId: RecordId; clockIn?: Date; clockOut?: Date; isLate?: boolean; lateMinutes?: number; needsReview?: boolean; tasksTotal?: number; tasksPending?: number; tasksCountAttendance?: boolean }>>(),
         LeaveRequest.find({ employeeId: { $in: ids }, status: { $in: ["approved", "pending"] }, startDate: { $lte: dayEnd }, endDate: { $gte: dayStart } })
           .populate("leaveTypeId", "name")
           .select("employeeId status leaveTypeId")
@@ -172,6 +176,11 @@ export async function dailyAttendance(options: {
     if (att?.clockIn) {
       status = att.isLate ? "late" : "present";
       if (att.isLate) note = `Terlambat ${att.lateMinutes ?? 0} menit`;
+      // Decided when the shift ends: until then the tasks can still be done.
+      if (att.tasksCountAttendance && (att.tasksPending ?? 0) > 0 && endsAt && now.getTime() >= endsAt.getTime()) {
+        status = "incomplete";
+        note = `${att.tasksPending} dari ${att.tasksTotal ?? 0} task wajib belum selesai`;
+      }
     } else if (approvedLeave) {
       status = "leave"; note = approvedLeave.leaveTypeId?.name ?? "Izin disetujui";
     } else if (!working) {
@@ -206,13 +215,14 @@ export async function dailyAttendance(options: {
       attendance: att
         ? { clockIn: att.clockIn?.toISOString() ?? null, clockOut: att.clockOut?.toISOString() ?? null, lateMinutes: att.lateMinutes ?? 0, needsReview: Boolean(att.needsReview) }
         : null,
+      tasks: att?.tasksTotal ? { total: att.tasksTotal, pending: att.tasksPending ?? 0 } : null,
       note,
       missingClockOut,
       pendingLeave,
     };
   });
 
-  const summary = { present: 0, late: 0, leave: 0, off: 0, holiday: 0, not_started: 0, missing: 0, absent: 0, missingClockOut: 0, total: rows.length };
+  const summary = { present: 0, late: 0, incomplete: 0, leave: 0, off: 0, holiday: 0, not_started: 0, missing: 0, absent: 0, missingClockOut: 0, total: rows.length };
   for (const row of rows) { summary[row.status] += 1; if (row.missingClockOut) summary.missingClockOut += 1; }
   return { rows, summary };
 }

@@ -46,6 +46,11 @@ export interface IAttendance extends Document {
   reviewedAt?: Date;
   reviewNote?: string;
   note: string;
+  /** Required tasks for the day and how many are still open; kept in step by the task service. */
+  tasksTotal: number;
+  tasksPending: number;
+  /** The employee's task policy says an unfinished day does not count as present. */
+  tasksCountAttendance: boolean;
 }
 
 const AttendanceSchema = new Schema<IAttendance>(
@@ -80,6 +85,9 @@ const AttendanceSchema = new Schema<IAttendance>(
     reviewedAt: { type: Date },
     reviewNote: { type: String },
     note: { type: String, default: "" },
+    tasksTotal: { type: Number, default: 0 },
+    tasksPending: { type: Number, default: 0 },
+    tasksCountAttendance: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

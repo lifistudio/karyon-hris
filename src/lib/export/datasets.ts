@@ -2,6 +2,8 @@ import { RecordId } from "@/lib/postgres";
 import { employeeRecordScopeFilter, Forbidden, scopeFilter, type GuardContext } from "@/lib/guard";
 import { decrypt, maskTail } from "@/lib/crypto";
 import { formatDate, formatDateTime, formatPeriod, wibEndOfMonth, wibStartOfMonth, timezoneName } from "@/lib/time";
+import { TASK_STATUS_LABELS } from "@/lib/hr/attendance-tasks";
+import { CHECK_TYPE_LABELS } from "@/lib/inventory/templates";
 import {
   CORRECTION_REASON_LABELS, EMPLOYEE_STATUS_LABELS, EMPLOYMENT_STATUS_LABELS, INVENTORY_CATEGORY_LABELS, INVENTORY_CONDITION_LABELS,
 } from "@/lib/hr/labels";
@@ -10,6 +12,8 @@ import type { ExportTable } from "./table";
 import type { ExportDataset } from "./catalog";
 import Attendance from "@/models/Attendance";
 import AttendanceCorrection from "@/models/AttendanceCorrection";
+import AuditReport from "@/models/AuditReport";
+import DailyTask from "@/models/DailyTask";
 import Candidate from "@/models/Candidate";
 import Contract from "@/models/Contract";
 import Employee from "@/models/Employee";
@@ -147,6 +151,39 @@ export async function buildExport(dataset: ExportDataset, params: ExportParams, 
         rows: rows.map((c) => [(c.contractNumber as string) ?? "", emp(c.employeeId)?.employeeId ?? "", emp(c.employeeId)?.name ?? "",
           EMPLOYMENT_STATUS_LABELS[c.type as string] ?? (c.customTypeLabel as string) ?? (c.type as string), (c.positionName as string) ?? "", formatDate(c.startDate as Date, ""), formatDate(c.endDate as Date, ""),
           c.status as string, (c.decision as string) ?? "", Number((c.salarySnapshot as { basicSalary?: number } | undefined)?.basicSalary ?? 0) || ""]),
+      };
+    }
+    case "inventory_checks": {
+      if (ctx.permission.scope !== "all") throw Forbidden("Ekspor ini memerlukan izin seluruh perusahaan.");
+      const [items, reports] = await Promise.all([
+        Inventory.find({}).sort({ code: 1 }).limit(MAX_EXPORT_ROWS).lean<Array<Record<string, unknown> & { _id: RecordId }>>(),
+        AuditReport.find({ period: params.period, type: { $ne: "initial" } }).populate("auditorId", "email").populate("holderEmployeeId", "name").sort({ auditDate: 1 }).limit(MAX_EXPORT_ROWS).lean<Array<Record<string, unknown>>>(),
+      ]);
+      const STATUS: Record<string, string> = { verified: "Sesuai", changed: "Ada perubahan", flagged: "Ada temuan" };
+      const byAsset = new Map<string, Array<Record<string, unknown>>>();
+      for (const r of reports) byAsset.set(String(r.inventoryId), [...(byAsset.get(String(r.inventoryId)) ?? []), r]);
+      return {
+        sheet: "Audit inventaris",
+        columns: ["Kode", "Nama aset", "Kategori", "Jenis cek", "Tanggal", "Pemeriksa", "Pemegang", "Kondisi sebelumnya", "Kondisi", "Hasil", "Temuan", "Perubahan", "Catatan"].map((label) => ({ label })),
+        rows: items.flatMap((i) => {
+          const base = [i.code as string, i.name as string, INVENTORY_CATEGORY_LABELS[i.category as string] ?? (i.category as string)];
+          const checks = byAsset.get(String(i._id));
+          if (!checks) return [[...base, "Belum dicek", "", "", "", "", INVENTORY_CONDITION_LABELS[i.condition as string] ?? (i.condition as string), "Belum dicek", "", "", ""]];
+          return checks.map((r) => [...base, CHECK_TYPE_LABELS[r.type as string] ?? (r.type as string), formatDateTime(r.auditDate as Date), (r.auditorId as { email?: string } | null)?.email ?? "", named(r.holderEmployeeId),
+            INVENTORY_CONDITION_LABELS[r.previousCondition as string] ?? "", INVENTORY_CONDITION_LABELS[r.condition as string] ?? (r.condition as string), STATUS[r.status as string] ?? (r.status as string),
+            ((r.findings as string[]) ?? []).join("; "), ((r.changes as string[]) ?? []).join("; "), (r.notes as string) ?? ""]);
+        }),
+      };
+    }
+    case "attendance_tasks": {
+      const rows = await DailyTask.find({ ...owned, dateKey: { $gte: `${params.period}-01`, $lte: `${params.period}-31` } })
+        .populate({ path: "employeeId", select: "name employeeId branchId", populate: { path: "branchId", select: "name" } })
+        .sort({ dateKey: 1 }).limit(MAX_EXPORT_ROWS).lean<Array<Record<string, unknown>>>();
+      return {
+        sheet: "Task harian",
+        columns: ["Tanggal", "NIP", "Nama", "Cabang", "Task", "Sumber", "Wajib", "Status", "Dikirim", "Bukti teks", "Jumlah lampiran", "Catatan atasan"].map((label) => ({ label })),
+        rows: rows.map((t) => [t.dateKey as string, emp(t.employeeId)?.employeeId ?? "", emp(t.employeeId)?.name ?? "", emp(t.employeeId)?.branchId?.name ?? "", t.title as string, t.source === "fixed" ? "Tetap" : "Dari atasan", yes(t.required),
+          TASK_STATUS_LABELS[t.status as keyof typeof TASK_STATUS_LABELS] ?? (t.status as string), t.submittedAt ? formatDateTime(t.submittedAt as Date) : "", (t.proofText as string) ?? "", ((t.proofItems as unknown[]) ?? []).length, (t.reviewNote as string) ?? ""]),
       };
     }
     case "inventory":

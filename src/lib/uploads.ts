@@ -4,7 +4,7 @@ import database from "@/lib/postgres";
 import { storageProvider, decodeDataUrl } from "@/lib/storage";
 import { sniffFile, KIND_LABEL } from "@/lib/storage/sniff";
 import { optimizeImage } from "@/lib/storage/image";
-import { HttpError } from "@/lib/guard";
+import { HttpError } from "@/lib/http-error";
 import PendingUpload from "@/models/PendingUpload";
 import {
   UPLOAD_POLICY,

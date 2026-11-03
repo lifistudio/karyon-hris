@@ -3,7 +3,7 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlarmClock, BellRing, CalendarOff, Clock3, Download, Search, UserCheck, UserX } from "@/components/icons";
+import { AlarmClock, BellRing, CalendarOff, Clock3, Download, ListChecks, Search, UserCheck, UserX } from "@/components/icons";
 import {
   Badge, Button, Card, EmptyState, ErrorState, Input, PageHeader, Select, SkeletonList, TableWrap, Td, Th, cn,
   type BadgeTone,
@@ -13,12 +13,13 @@ import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/client-api";
 import { formatDateLong, formatTime, wibDateKey } from "@/lib/time";
 
-type Status = "present" | "late" | "leave" | "off" | "holiday" | "not_started" | "missing" | "absent";
+type Status = "present" | "late" | "incomplete" | "leave" | "off" | "holiday" | "not_started" | "missing" | "absent";
 interface Row {
   employee: { _id: string; employeeId: string; name: string; branch: string | null; branchId: string | null; division: string | null; position: string | null };
   status: Status;
   schedule: { name: string; clockIn: string; clockOut: string } | null;
   attendance: { clockIn: string | null; clockOut: string | null; lateMinutes: number; needsReview: boolean } | null;
+  tasks: { total: number; pending: number } | null;
   note: string;
   missingClockOut: boolean;
   pendingLeave: boolean;
@@ -26,10 +27,10 @@ interface Row {
 interface Daily { date: string; summary: Record<Status, number> & { missingClockOut: number; total: number }; rows: Row[]; labels: Record<Status, string> }
 
 const TONE: Record<Status, BadgeTone> = {
-  present: "success", late: "warning", leave: "info", off: "neutral", holiday: "neutral", not_started: "neutral", missing: "accent", absent: "danger",
+  present: "success", late: "warning", incomplete: "danger", leave: "info", off: "neutral", holiday: "neutral", not_started: "neutral", missing: "accent", absent: "danger",
 };
 const FILTERS: Array<{ id: Status | "all"; label: string }> = [
-  { id: "all", label: "Semua" }, { id: "missing", label: "Belum absen" }, { id: "absent", label: "Alpha" }, { id: "late", label: "Terlambat" },
+  { id: "all", label: "Semua" }, { id: "missing", label: "Belum absen" }, { id: "absent", label: "Alpha" }, { id: "late", label: "Terlambat" }, { id: "incomplete", label: "Task belum selesai" },
   { id: "present", label: "Hadir" }, { id: "leave", label: "Izin/Cuti" }, { id: "not_started", label: "Belum mulai" }, { id: "off", label: "Libur" }, { id: "holiday", label: "Libur nasional" },
 ];
 
@@ -108,13 +109,14 @@ function AttendanceMonitor() {
 
       {error ? <ErrorState message={error} onRetry={() => setReload((n) => n + 1)} /> : (
         <div className="space-y-6">
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+          <div className={cn("grid gap-3 grid-cols-2", s?.incomplete ? "lg:grid-cols-6" : "lg:grid-cols-5")}>
             {[
               { id: "present" as const, label: "Hadir tepat waktu", value: s?.present, icon: UserCheck, tone: "text-success" },
               { id: "late" as const, label: "Terlambat", value: s?.late, icon: Clock3, tone: "text-warning" },
               { id: "missing" as const, label: "Belum absen", value: s?.missing, icon: AlarmClock, tone: "text-warning" },
               { id: "absent" as const, label: "Alpha", value: s?.absent, icon: UserX, tone: "text-danger" },
               { id: "leave" as const, label: "Izin/Cuti", value: s?.leave, icon: CalendarOff, tone: "text-info" },
+              ...(s?.incomplete ? [{ id: "incomplete" as const, label: "Task belum selesai", value: s.incomplete, icon: ListChecks, tone: "text-danger" }] : []),
             ].map((card) => (
               <button
                 key={card.id}
@@ -171,7 +173,10 @@ function AttendanceMonitor() {
                       <Td className="tabular-nums whitespace-nowrap">{r.attendance?.clockIn ? formatTime(r.attendance.clockIn) : "—"}</Td>
                       <Td className="tabular-nums whitespace-nowrap">{r.attendance?.clockOut ? formatTime(r.attendance.clockOut) : r.missingClockOut ? <Badge tone="warning">Belum</Badge> : "—"}</Td>
                       <Td><Badge tone={TONE[r.status]} dot>{data?.labels[r.status] ?? r.status}</Badge></Td>
-                      <Td className="text-muted text-body-sm min-w-48">{r.note || (r.attendance?.needsReview ? "Perlu ditinjau" : "")}</Td>
+                      <Td className="text-muted text-body-sm min-w-48">
+                        {r.note || (r.attendance?.needsReview ? "Perlu ditinjau" : "")}
+                        {r.tasks && r.status !== "incomplete" && <div className="text-caption">Task {r.tasks.total - r.tasks.pending}/{r.tasks.total}</div>}
+                      </Td>
                     </tr>
                   ))}
                 </tbody>

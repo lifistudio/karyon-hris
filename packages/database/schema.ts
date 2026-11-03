@@ -16,6 +16,11 @@ export class RecordId {
   equals(value: unknown) { return this.value === String(value); }
 }
 
+/** Bundlers can load this module twice, and `instanceof` fails across the two copies. */
+export function isRecordId(value: unknown): value is RecordId {
+  return value instanceof RecordId || (typeof value === "object" && value !== null && typeof (value as { toHexString?: unknown }).toHexString === "function");
+}
+
 // Schema declarations are retained to validate existing API contracts. Storage
 // is one SQL table per model, with native scalar columns and JSONB nested data.
 // Deliberately dynamic at the schema compiler boundary; every stored field is

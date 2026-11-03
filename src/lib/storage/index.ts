@@ -33,6 +33,7 @@ export { LocalProvider };
 export type { StorageProvider };
 export {
   toStorageKey,
+  isCanonicalKey,
   contentTypeForKey,
   ALLOWED_UPLOAD_MIME,
   MAX_UPLOAD_BYTES,

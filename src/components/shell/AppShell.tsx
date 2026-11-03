@@ -260,6 +260,19 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const role = session?.user?.role;
   const [disciplineAccess, setDisciplineAccess] = useState(false);
+  const [teamAccess, setTeamAccess] = useState(false);
+  const wantsTeam = sections.some((s) => s.items.some((i) => i.permission === "team"));
+  useEffect(() => {
+    if (!wantsTeam) return;
+    let active = true;
+    fetch("/api/v1/attendance/tasks/team?view=access", { credentials: "same-origin", cache: "no-store" })
+      .then(async (r) => {
+        const body = r.ok ? await r.json().catch(() => null) : null;
+        if (active) setTeamAccess(Boolean(body?.data?.isLead));
+      })
+      .catch(() => { if (active) setTeamAccess(false); });
+    return () => { active = false; };
+  }, [role, wantsTeam]);
   useEffect(() => {
     let active = true;
     fetch("/api/v1/discipline?view=access", { credentials: "same-origin", cache: "no-store" })
@@ -276,9 +289,9 @@ export function AppShell({
   const visibleSections = useMemo(
     () =>
       sections
-        .map((s) => ({ ...s, items: s.items.filter((i) => (!i.roles || !role || i.roles.includes(role)) && (!i.permission || disciplineAccess)) }))
+        .map((s) => ({ ...s, items: s.items.filter((i) => (!i.roles || !role || i.roles.includes(role)) && (!i.permission || (i.permission === "team" ? teamAccess : disciplineAccess))) }))
         .filter((s) => s.items.length > 0),
-    [sections, role, disciplineAccess]
+    [sections, role, disciplineAccess, teamAccess]
   );
 
   useEffect(() => setMobileOpen(false), [pathname]);

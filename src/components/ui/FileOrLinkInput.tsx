@@ -73,6 +73,7 @@ export function FileOrLinkInput({
   multiple = false,
   maxFiles,
   allowLink = true,
+  allowFile = true,
   vacancySlug,
   disabled,
   id,
@@ -84,6 +85,7 @@ export function FileOrLinkInput({
   multiple?: boolean;
   maxFiles?: number;
   allowLink?: boolean;
+  allowFile?: boolean;
   /** Set on the public career page: uploads go to the anonymous endpoint. */
   vacancySlug?: string;
   disabled?: boolean;
@@ -92,7 +94,7 @@ export function FileOrLinkInput({
 }) {
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [mode, setMode] = useState<"file" | "link">("file");
+  const [mode, setMode] = useState<"file" | "link">(allowFile ? "file" : "link");
   const [draftLink, setDraftLink] = useState("");
   const [linkError, setLinkError] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -186,7 +188,7 @@ export function FileOrLinkInput({
 
   return (
     <div id={id} className="space-y-2.5">
-      {allowLink && (
+      {allowLink && allowFile && (
         <div role="tablist" className="inline-flex p-0.5 rounded-[var(--radius-control)] bg-surface-2 border border-line">
           {(
             [

@@ -11,8 +11,11 @@ import Role from "../../models/Role";
 import Inventory from "../../models/Inventory";
 import InventoryAssignment from "../../models/InventoryAssignment";
 import AuditReport from "../../models/AuditReport";
-import { assignAsset, cancelHandover, disputeHandover, recordCheck, returnAsset, signHandover, getCategorySettings, saveCategorySettings } from "./server";
-import { compareCheck } from "./templates";
+import InventoryEvent from "../../models/InventoryEvent";
+import { assignAsset, cancelHandover, disputeHandover, recordCheck, recordMaintenance, reportAssetIssue, returnAsset, signHandover, getCategorySettings, saveCategorySettings } from "./server";
+import { compareCheck, describeChanges, diffSpecs } from "./templates";
+
+process.env.ENCRYPTION_KEY ??= "test-key-0123456789abcdef0123456789abcdef";
 
 const SIGNATURE = "data:image/png;base64,iVBORw0KGgo=";
 
@@ -73,6 +76,71 @@ test("inventory: baseline, handover, signature, monthly check and return", async
     assert.equal((await Inventory.findById(id)).code, "AST-LAP-001");
     assert.equal(await AuditReport.countDocuments({ inventoryId: id }), 1);
   } finally { database.connection.testDriver = undefined; await pg.close(); }
+});
+
+test("inventory: replacements move the record, repairs leave a trace, a signed BAST stays as signed", async () => {
+  const pg = new PGlite(); database.connection.testDriver = pg;
+  try {
+    await setupSchema(database, "hris");
+    const role = await Role.create({ name: "GA" });
+    const user = await User.create({ email: "ga2@test.local", roleId: role._id });
+    const first = await Employee.create({ name: "Budi", officeEmail: "budi@test.local", employeeId: "EMP-010", status: "active" });
+    const second = await Employee.create({ name: "Sari", officeEmail: "sari@test.local", employeeId: "EMP-011", status: "active" });
+    const ga: GuardContext = { user: { id: String(user._id), email: "ga2@test.local", role: "GA", employeeId: null, branchId: null, divisionId: null }, permission: { allowed: true, scope: "all" } as never, ip: "127.0.0.1", userAgent: "test" };
+    const self = { ...ga, ip: "10.0.0.9", user: { ...ga.user, employeeId: String(first._id) }, employeeId: String(first._id) };
+    const asset = await Inventory.create({ code: "AST-LAP-002", name: "Laptop", category: "laptop", condition: "good", specs: [{ label: "RAM", value: "8 GB" }], initialCheck: { condition: "good", checklist: [], specs: [{ label: "RAM", value: "8 GB" }], recordedAt: new Date() } });
+    const id = String(asset._id);
+
+    const handover = await assignAsset(ga, { inventoryId: id, employeeId: String(first._id) });
+    const signed = await signHandover(self, { assignmentId: String(handover._id), signatureData: SIGNATURE });
+    assert.equal(signed.signedVia, "portal");
+    assert.equal(signed.signedIp, "10.0.0.9");
+    assert.match(signed.signatureHash, /^[a-f0-9]{64}$/);
+    assert.ok(!signed.signatureUrl.startsWith("data:"));
+    await assert.rejects(signHandover(self, { assignmentId: String(handover._id), signatureData: "data:image/png;base64,PHN2Zz4=" }), /Serah terima tidak ditemukan|tidak sesuai|Tanda tangan harus/);
+
+    // A known replacement is a change, not a finding, and updates the record.
+    const report = await recordCheck(ga, {
+      inventoryId: id, type: "monthly", condition: "good",
+      checklist: [{ label: "Layar", result: "repaired", note: "ganti panel" }],
+      specChecks: [{ label: "RAM", expected: "8 GB", matches: false, replaced: true, actual: "16 GB" }],
+    });
+    assert.equal(report.status, "changed");
+    assert.equal(report.changes.length, 2);
+    assert.deepEqual((await Inventory.findById(id)).specs, [{ label: "RAM", value: "16 GB" }]);
+    assert.equal((await InventoryAssignment.findById(handover._id)).handoverSpecs[0].value, "8 GB");
+    assert.equal(await InventoryEvent.countDocuments({ inventoryId: id, checkId: report._id }), 2);
+
+    // An unexplained difference still flags the check.
+    const odd = await recordCheck(ga, { inventoryId: id, type: "incidental", condition: "good", specChecks: [{ label: "RAM", expected: "16 GB", matches: false }] });
+    assert.equal(odd.status, "flagged");
+
+    // The holder's report stays open until GA records the work.
+    await reportAssetIssue(self, { assignmentId: String(handover._id), note: "Layar berkedip" });
+    await assert.rejects(reportAssetIssue({ ...self, employeeId: String(second._id) }, { assignmentId: String(handover._id), note: "Bukan aset saya" }), /tidak tercatat/);
+    await recordMaintenance(ga, { inventoryId: id, type: "replacement", component: "RAM", toValue: "32 GB", description: "Upgrade RAM", condition: "good" });
+    assert.deepEqual((await Inventory.findById(id)).specs, [{ label: "RAM", value: "32 GB" }]);
+    assert.equal(await InventoryEvent.countDocuments({ inventoryId: id, type: "employee_report", resolvedAt: null }), 0);
+
+    // Direct transfer closes the current handover; the same holder cannot receive it again.
+    await assert.rejects(assignAsset(ga, { inventoryId: id, employeeId: String(first._id), transfer: true }), /sudah dipegang/);
+    const moved = await assignAsset(ga, { inventoryId: id, employeeId: String(second._id), transfer: true });
+    assert.equal((await InventoryAssignment.findById(handover._id)).status, "returned");
+    assert.equal(moved.status, "pending_handover");
+
+    // The previous holder can receive it again after it comes back.
+    await cancelHandover(ga, { inventoryId: id });
+    const again = await assignAsset(ga, { inventoryId: id, employeeId: String(first._id) });
+    assert.equal(String(again.employeeId), String(first._id));
+  } finally {
+    database.connection.testDriver = undefined;
+    await pg.close();
+  }
+});
+
+test("inventory: change descriptions and spec diffs", () => {
+  assert.deepEqual(describeChanges({ checklist: [{ label: "Baterai", result: "replaced", note: "baru" }, { label: "Layar", result: "ok" }] }), ["Baterai diganti: baru"]);
+  assert.deepEqual(diffSpecs([{ label: "RAM", value: "8" }], [{ label: "RAM", value: "16" }, { label: "SSD", value: "1 TB" }]), [{ label: "RAM", from: "8", to: "16" }, { label: "SSD", from: "", to: "1 TB" }]);
 });
 
 test("inventory: compareCheck reports changes against the baseline", () => {

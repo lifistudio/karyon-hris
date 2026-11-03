@@ -1,5 +1,5 @@
 import { wrapRouteHandler, apiSuccess } from "@/lib/api";
-import { requirePermission, BadRequest } from "@/lib/guard";
+import { requireCompanyPermission, requirePermission, BadRequest, Forbidden } from "@/lib/guard";
 import { connectToDatabase } from "@/lib/db";
 import { RecordId } from "@/lib/postgres";
 import { wibPeriodKey } from "@/lib/time";
@@ -14,7 +14,9 @@ import "@/models/User";
  * the summary tells how far the monthly round has got.
  */
 export const GET = wrapRouteHandler(async (req) => {
-  await requirePermission(req, "inventory", "read");
+  const ctx = await requirePermission(req, "inventory", "read");
+  // The round and its findings span the company; a unit lead sees its assets on the list.
+  if (ctx.permission.scope !== "all") throw Forbidden("Riwayat pengecekan memerlukan izin seluruh perusahaan.");
   await connectToDatabase();
 
   const sp = new URL(req.url).searchParams;
@@ -49,11 +51,13 @@ export const GET = wrapRouteHandler(async (req) => {
 });
 
 export const POST = wrapRouteHandler(async (req) => {
-  const ctx = await requirePermission(req, "inventory", "write");
+  const ctx = await requireCompanyPermission(req, "inventory", "write");
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") throw BadRequest("Isi permintaan tidak valid.");
   const report = await recordCheck(ctx, body);
   return apiSuccess(report, report.status === "flagged"
     ? "Pengecekan disimpan dan ditandai: ada temuan yang perlu ditindaklanjuti."
-    : "Pengecekan disimpan. Kondisi sesuai catatan.");
+    : report.status === "changed"
+      ? "Pengecekan disimpan. Perbaikan dan penggantian tercatat di riwayat aset."
+      : "Pengecekan disimpan. Kondisi sesuai catatan.");
 });

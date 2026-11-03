@@ -1,5 +1,5 @@
 import { wrapRouteHandler, apiSuccess } from "@/lib/api";
-import { requireUser, requirePermission, enforceRateLimit, BadRequest } from "@/lib/guard";
+import { requireUser, requirePermission, enforceRateLimit, BadRequest, HttpError } from "@/lib/guard";
 import { createPendingUpload } from "@/lib/uploads";
 import { UPLOAD_POLICY, type UploadContext } from "@/lib/attachments";
 
@@ -10,7 +10,7 @@ import { UPLOAD_POLICY, type UploadContext } from "@/lib/attachments";
  * later; the file itself is not attached to anything until then.
  */
 
-const INTERNAL_CONTEXTS: UploadContext[] = ["leave", "correction", "complaint", "application", "contract", "document"];
+const INTERNAL_CONTEXTS: UploadContext[] = ["leave", "correction", "complaint", "application", "contract", "document", "inventory", "task"];
 
 /** Contexts only staff with a given permission may upload for. */
 const CONTEXT_PERMISSION: Partial<Record<UploadContext, [string, string]>> = {
@@ -19,7 +19,15 @@ const CONTEXT_PERMISSION: Partial<Record<UploadContext, [string, string]>> = {
   // "document" is used by both payroll and KPI screens; either grant is enough.
 };
 
+const MAX_BODY_BYTES = Math.max(...Object.values(UPLOAD_POLICY).map((p) => p.maxBytes)) + 64 * 1024;
+
 export const POST = wrapRouteHandler(async (req) => {
+  // Both before the body is read: parsing buffers the whole upload in memory.
+  await requireUser(req);
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) {
+    throw new HttpError(413, "PAYLOAD_TOO_LARGE", "Ukuran berkas melebihi batas unggahan.");
+  }
+
   let form: FormData;
   try {
     form = await req.formData();

@@ -28,6 +28,10 @@ import LeaveRequest from "@/models/LeaveRequest";
 import FaceProfile from "@/models/FaceProfile";
 import { getBranchAccess, isBranchUsable, INACTIVE_BRANCH_MESSAGE } from "@/lib/licensing/branch-access";
 import { getFaceSettings, verifyAttendanceFace, FaceMismatchError } from "@/lib/face/service";
+import { assertTasksAllowClockOut, ensureDailyTasks, syncAttendanceTasks } from "@/lib/hr/attendance-tasks-server";
+
+/** How long after a night shift's end it can still be closed before a new day may start. */
+const NIGHT_SHIFT_CLOCK_OUT_WINDOW_MS = 4 * 3600_000;
 
 const ACTIONS = ["clock_in", "break_out", "break_in", "clock_out"] as const;
 type Action = (typeof ACTIONS)[number];
@@ -197,12 +201,35 @@ export const POST = wrapRouteHandler(async (req) => {
 
   /* --- 4. Existing record + step ordering -------------------------- */
   // Ordering is enforced server-side: hiding a button in the UI is not a rule.
-  const existing = await Attendance.findOne({
+  let existing = await Attendance.findOne({
     employeeId: ctx.employeeId,
     date: { $gte: dayStart, $lte: wibEndOfDay(dayKey) },
   });
 
+  // A night shift ends after midnight, so its later taps belong to the day it
+  // started on. Only a record that is still open and scheduled across midnight
+  // qualifies; everything else stays on today.
+  let workDay = dayKey;
+  if (!existing) {
+    const yesterday = wibDateKey(new Date(dayStart.getTime() - 12 * 3600_000));
+    const open = await Attendance.findOne({
+      employeeId: ctx.employeeId,
+      date: { $gte: wibStartOfDay(yesterday), $lte: wibEndOfDay(yesterday) },
+    });
+    if (open?.clockIn && !open.clockOut && open.scheduleClockIn && open.scheduleClockOut && open.scheduleClockOut <= open.scheduleClockIn) {
+      if (action !== "clock_in") {
+        existing = open;
+        workDay = yesterday;
+      } else if (now.getTime() < wibTimeOnDay(dayKey, open.scheduleClockOut).getTime() + NIGHT_SHIFT_CLOCK_OUT_WINDOW_MS) {
+        // A fresh day here would leave last night's shift, and its tasks, unanswered.
+        throw Conflict("Shift semalam belum absen pulang. Catat absen pulang terlebih dahulu.");
+      }
+    }
+  }
+
   assertSequence(action, existing, Boolean(settings.enable_break_attendance));
+  // Checked before the photo work below: a refused tap should cost nothing.
+  if (action === "clock_out") await assertTasksAllowClockOut(ctx.employeeId, workDay);
 
   /* --- 5. Geofence ------------------------------------------------- */
   let activeBranch = assignedBranch;
@@ -324,20 +351,20 @@ export const POST = wrapRouteHandler(async (req) => {
     const stored = await optimizeImage(buffer, { maxSide: 1600 });
     photoKey = await storageProvider.upload(
       stored.buffer,
-      `attendances/${ctx.employeeId}/${dayKey}-${action}-${now.getTime()}${stored.ext}`,
+      `attendances/${ctx.employeeId}/${workDay}-${action}-${now.getTime()}${stored.ext}`,
       stored.mime
     );
   }
 
   /* --- 7. Lateness -------------------------------------------------- */
-  const schedule = await resolveSchedule(ctx.employeeId, dayKey, assignedBranch);
+  const schedule = await resolveSchedule(ctx.employeeId, workDay, assignedBranch);
   let isLate = false;
   let lateMinutes = 0;
 
   // On a rostered day off nobody is late or leaves early; the hours still get
   // recorded and overtime rules decide what they are worth.
   if (action === "clock_in" && !schedule.isOffDay) {
-    const scheduledAt = wibTimeOnDay(dayKey, schedule.clockIn);
+    const scheduledAt = wibTimeOnDay(workDay, schedule.clockIn);
     const deadline = new Date(scheduledAt.getTime() + schedule.gracePeriodMinutes * 60_000);
     if (now.getTime() > deadline.getTime()) {
       isLate = true;
@@ -352,7 +379,7 @@ export const POST = wrapRouteHandler(async (req) => {
   let earlyLeaveMinutes = 0;
   if (action === "clock_out" && !schedule.isOffDay) {
     // A night shift (23:00–07:00) ends on the following calendar day.
-    const outDay = schedule.clockOut <= schedule.clockIn ? new Date(wibStartOfDay(dayKey).getTime() + 86_400_000) : dayKey;
+    const outDay = schedule.clockOut <= schedule.clockIn ? new Date(wibStartOfDay(workDay).getTime() + 86_400_000) : workDay;
     const scheduledOut = wibTimeOnDay(outDay, schedule.clockOut);
     if (now.getTime() < scheduledOut.getTime()) {
       isEarlyLeave = true;
@@ -361,7 +388,7 @@ export const POST = wrapRouteHandler(async (req) => {
   }
 
   /* --- 9. Persist ---------------------------------------------------- */
-  const holidays = await holidayMap(dayKey, dayKey);
+  const holidays = await holidayMap(workDay, workDay);
   const record =
     existing ??
     new Attendance({
@@ -401,19 +428,23 @@ export const POST = wrapRouteHandler(async (req) => {
   record.isCrossBranch = isCrossBranch || record.isCrossBranch;
   record.isLocationOverride = usingOverride || record.isLocationOverride;
   record.isRemoteApproved = remoteApproved || record.isRemoteApproved;
-  record.isHoliday = holidays.has(dayKey);
+  record.isHoliday = holidays.has(workDay);
   if (body.note) record.note = body.note.trim();
   record.needsReview =
     record.isLocationOverride || record.isCrossBranch || record.isManualFallback;
 
   await record.save();
+  if (action === "clock_in") {
+    await ensureDailyTasks(ctx.employeeId, workDay);
+    await syncAttendanceTasks(ctx.employeeId, workDay);
+  }
 
   void logActivity({
     userId: ctx.user.id,
     action: action.toUpperCase(),
     module: "attendance",
     after: {
-      date: dayKey,
+      date: workDay,
       action,
       branch: activeBranch.name,
       distanceMeter: Math.round(distance),

@@ -34,6 +34,8 @@ export {
   RiCalendar2Line as CalendarRange,
   RiCameraLine as Camera,
   RiCameraOffLine as CameraOff,
+  RiArrowLeftRightLine as ArrowLeftRight,
+  RiToolsLine as Wrench,
   RiCheckLine as Check,
   RiCheckDoubleLine as CheckCheck,
   RiCheckboxCircleLine as CheckCircle,

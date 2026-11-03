@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 # `next build` on this app (60+ routes) can exceed Node's default ~2GB heap on
@@ -9,7 +9,7 @@ RUN npm ci
 COPY . .
 RUN npm run build && npm run build:db
 
-FROM node:24-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ARG APP_VERSION=dev
 ENV APP_VERSION=$APP_VERSION

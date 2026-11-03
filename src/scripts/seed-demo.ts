@@ -30,6 +30,7 @@ import Contract from "../models/Contract";
 import PayProfile from "../models/PayProfile";
 import PayrollInput from "../models/PayrollInput";
 import Payroll from "../models/Payroll";
+import AttendanceTaskPolicy from "../models/AttendanceTaskPolicy";
 import Inventory from "../models/Inventory";
 import InventoryAssignment from "../models/InventoryAssignment";
 import AuditReport from "../models/AuditReport";
@@ -165,6 +166,10 @@ export async function seedDemo({ apply = false }: { apply?: boolean } = {}) {
       add(DisciplineCase, i, { employeeId, category: action === "resignation" ? "separation" : i % 4 ? "misconduct" : "fatal", title: `DEMO tinjauan ${num}`, description: "DEMO kronologi sintetis untuk pengujian daftar sanksi; bukan tuduhan atau keputusan nyata.", evidence: "DEMO referensi dokumen", employeeStatement: "DEMO klarifikasi karyawan", action, status, occurredAt: fixtureTime, createdBy: actor, effectiveAt: status === "issued" ? fixtureTime : null, history: [{ actorId: actor, status: "open", note: "DEMO kasus dicatat", at: fixtureTime }, ...(status === "issued" ? [{ actorId: actor, status: "issued", note: "DEMO keputusan ilustratif", at: fixtureTime }] : [])] });
     }
   }
+  add(AttendanceTaskPolicy, 0, { name: "DEMO Task harian penjualan", isActive: true, roleIds: [], divisionIds: [String(oid("Division", 1))], positionIds: [], employeeIds: [], branchIds: [], blockClockOut: true, countsAttendance: true, requireReview: false, createdBy: actor, tasks: [
+    { id: "demo-visit", title: "Foto kunjungan pelanggan", description: "Unggah foto toko dan tulis hasil pertemuan.", proofTypes: ["file", "text"], proofMode: "all", required: true, weekdays: [] },
+    { id: "demo-report", title: "Isi laporan penjualan harian", description: "Tempel tautan Google Sheets.", proofTypes: ["link"], proofMode: "any", required: true, weekdays: [] },
+  ] });
   for (let v = 0; v < 5; v++) add(JobVacancy, v, { title: `DEMO Lowongan ${divisions[v]}`, slug: `demo-vacancy-${v}`, positionId: oid("Position", v), divisionId: oid("Division", v), branchId: oid("Branch", v), status: "draft", summary: "DEMO lowongan sintetis; tidak dipublikasikan ke pelamar nyata.", stages: DEFAULT_STAGES, openings: 5, applicantCount: 10, createdBy: actor });
   for (let c = 0; c < 50; c++) {
     const candidateId = add(Candidate, c, { name: `DEMO Pelamar ${c + 1}`, email: `candidate${c + 1}@hris.invalid`, phone: "0000000000", vacancyId: oid("JobVacancy", c % 5), positionId: oid("Position", c % 5), source: "manual", currentStage: DEFAULT_STAGES[c % 5], status: c % 3 ? "in_progress" : "pending", reference: `DEMO-CAN-${c + 1}`, city: branches[c % 5][0], notes: "DEMO kandidat sintetis", lastActivityAt: fixtureTime });

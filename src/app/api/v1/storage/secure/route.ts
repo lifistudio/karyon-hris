@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { storageProvider, LocalProvider, toStorageKey } from "@/lib/storage";
+import { storageProvider, LocalProvider, isCanonicalKey, toStorageKey } from "@/lib/storage";
 import { logActivity } from "@/lib/audit/logger";
 import { clientIp } from "@/lib/rate-limit";
 import { checkPermission } from "@/lib/rbac";
@@ -28,6 +28,7 @@ const EMPLOYEE_SCOPED_PREFIXES = [
   "leaves/",
   "corrections/",
   "inventory-bast/",
+  "task-proofs/",
   "complaints/",
 ];
 
@@ -60,7 +61,7 @@ export async function GET(req: Request) {
   if (!rawKey) return jsonError("Parameter berkas tidak lengkap.", 400);
 
   const key = toStorageKey(rawKey);
-  if (!key || key.includes("..")) return jsonError("Jalur berkas tidak valid.", 400);
+  if (!isCanonicalKey(key)) return jsonError("Jalur berkas tidak valid.", 400);
 
   // --- Gate 1: signature or session -------------------------------------
   let signatureValid = false;

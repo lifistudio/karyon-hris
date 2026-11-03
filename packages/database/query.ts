@@ -1,10 +1,10 @@
 import type { DynamicValue } from "./schema";
-import { descriptor, fields, ident, literal, RecordId, Schema, sqlType, type Shape } from "./schema";
+import { descriptor, fields, ident, isRecordId, literal, Schema, sqlType, type Shape } from "./schema";
 
 export class SqlBuilder {
   values: DynamicValue[] = [];
   constructor(public shape: Shape, public alias = "t") {}
-  param(value: DynamicValue, cast = "") { this.values.push(value instanceof RecordId ? String(value) : value); return `$${this.values.length}${cast ? `::${cast}` : ""}`; }
+  param(value: DynamicValue, cast = "") { this.values.push(isRecordId(value) ? String(value) : value); return `$${this.values.length}${cast ? `::${cast}` : ""}`; }
   field(path: string): { sql: string; type: string; array: boolean; definition: DynamicValue } {
     const parts = path.split(".");
     parts.forEach(ident);
@@ -34,7 +34,7 @@ export class SqlBuilder {
       const date = new Date(value); if (!Number.isFinite(date.getTime())) throw new Error("Invalid query date");
       return this.param(date, type);
     }
-    return this.param(value instanceof RecordId ? String(value) : value, type);
+    return this.param(isRecordId(value) ? String(value) : value, type);
   }
   condition(filter: Shape = {}): string {
     const terms: string[] = [];
@@ -57,7 +57,7 @@ export class SqlBuilder {
         return `${f.sql} ${op} ${this.scalar(val, f.type)}`;
       };
       if (value instanceof RegExp) { terms.push(`${f.sql} ${value.ignoreCase ? "~*" : "~"} ${this.param(value.source)}`); continue; }
-      if (value && typeof value === "object" && !(value instanceof Date) && !(value instanceof RecordId) && !Array.isArray(value) && Object.keys(value).some(k => k.startsWith("$"))) {
+      if (value && typeof value === "object" && !(value instanceof Date) && !isRecordId(value) && !Array.isArray(value) && Object.keys(value).some(k => k.startsWith("$"))) {
         for (const [op, val] of Object.entries(value)) {
           if (op === "$options") continue;
           if (op === "$eq") terms.push(compare("=", val));

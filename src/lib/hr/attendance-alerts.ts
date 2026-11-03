@@ -3,8 +3,10 @@ import database from "@/lib/postgres";
 import { connectToDatabase } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { notifyUsers, resolveRecipientsByUserIds, type NotifyPayload } from "@/lib/notification/notify";
-import { formatDate, wibDateKey, wibParts } from "@/lib/time";
+import { formatDate, wibDateKey, wibParts, wibPeriodKey } from "@/lib/time";
 import { dailyAttendance, type DailyRow } from "@/lib/hr/attendance-monitor";
+import AuditReport from "@/models/AuditReport";
+import Inventory from "@/models/Inventory";
 import Notification from "@/models/Notification";
 import RolePermission from "@/models/RolePermission";
 import Role from "@/models/Role";
@@ -72,8 +74,8 @@ export async function remindMissing(rows: DailyRow[], dateKey: string): Promise<
  * One scheduler tick. Serialised across instances with a PostgreSQL advisory
  * lock; each part is idempotent per day through `notifyOnce`.
  */
-export async function runAttendanceAlerts(now = new Date()): Promise<{ skipped?: string; reminders: number; clockOut: number; summaries: number; alpha: number }> {
-  const result = { reminders: 0, clockOut: 0, summaries: 0, alpha: 0 };
+export async function runAttendanceAlerts(now = new Date()): Promise<{ skipped?: string; reminders: number; clockOut: number; tasks: number; summaries: number; alpha: number }> {
+  const result = { reminders: 0, clockOut: 0, tasks: 0, summaries: 0, alpha: 0 };
   await connectToDatabase();
   const settings = await getSettings(true);
   if (!settings.attendance_alerts_enabled) return { skipped: "disabled", ...result };
@@ -109,6 +111,18 @@ export async function runAttendanceAlerts(now = new Date()): Promise<{ skipped?:
       body: "Jam kerja Anda sudah berakhir tetapi presensi pulang belum tercatat. Lakukan absen pulang atau ajukan koreksi absen.",
       href: "/portal/attendance",
       refType: `attendance:clockout:${todayKey}`,
+      emailOptOut: true,
+    });
+
+    // Unfinished daily tasks, while there is still time to finish them.
+    const taskLead = Number(settings.attendance_task_reminder_minutes ?? 60) * 60_000;
+    const openTasks = rows.filter((r) => (r.tasks?.pending ?? 0) > 0 && !r.attendance?.clockOut && r.schedule?.endsAt && now.getTime() >= new Date(r.schedule.endsAt).getTime() - taskLead);
+    result.tasks = await notifyOnce(openTasks.map((r) => users.get(r.employee._id)).filter(Boolean) as string[], {
+      kind: "attendance",
+      title: "Task hari ini belum selesai",
+      body: "Selesaikan task dan kirim buktinya sebelum absen pulang.",
+      href: "/portal/attendance",
+      refType: `attendance:tasks:${todayKey}`,
       emailOptOut: true,
     });
 
@@ -176,5 +190,33 @@ export async function runAttendanceAlerts(now = new Date()): Promise<{ skipped?:
       });
     }
     return result;
+  });
+}
+
+/**
+ * Tells the inventory team, once a month, how many assets still miss their
+ * monthly check. Quiet until the configured day so the round is not nagged early.
+ */
+export async function runInventoryAlerts(now = new Date()): Promise<number> {
+  await connectToDatabase();
+  const settings = await getSettings(true);
+  const fromDay = Number(settings.inventory_check_reminder_day ?? 25);
+  if (!fromDay || wibParts(now).day < fromDay) return 0;
+  const period = wibPeriodKey(now);
+  const [total, done] = await Promise.all([
+    Inventory.countDocuments({ condition: { $ne: "lost" } }),
+    AuditReport.countDocuments({ type: "monthly", period }),
+  ]);
+  const left = total - done;
+  if (left <= 0) return 0;
+  const grants = (await RolePermission.find({ module: "inventory", scope: "all" }).select("roleId actions").lean<Array<{ roleId: RecordId; actions: string[] }>>())
+    .filter((g) => g.actions?.includes("write"));
+  const custodians = await User.find({ roleId: { $in: grants.map((g) => g.roleId) }, isActive: { $ne: false } }).select("_id").lean<Array<{ _id: RecordId }>>();
+  return notifyOnce(custodians.map((u) => String(u._id)), {
+    kind: "inventory",
+    title: `${left} aset belum dicek bulan ini`,
+    body: `Dari ${total} aset, ${done} sudah dicek. Selesaikan pengecekan sebelum akhir bulan.`,
+    href: "/admin/inventory",
+    refType: `inventory:monthly:${period}`,
   });
 }

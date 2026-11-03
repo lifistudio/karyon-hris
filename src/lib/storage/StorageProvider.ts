@@ -51,6 +51,16 @@ export function toStorageKey(value: string): string {
   return key;
 }
 
+/**
+ * Access rules match on the key's first folder, so one file must have exactly
+ * one spelling. `./faces/x` reaches the same file as `faces/x` but matches none
+ * of those rules; every such variant is refused before they run.
+ */
+export function isCanonicalKey(key: string): boolean {
+  if (!key || key.includes("\\")) return false;
+  return key.split("/").every((part) => part !== "" && part !== "." && part !== "..");
+}
+
 const MIME_BY_EXT: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
