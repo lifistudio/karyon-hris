@@ -23,7 +23,7 @@ export type StoredAttachment =
   | { kind: "link"; url: string };
 
 /** Where an upload is going to be used; each has its own limits. */
-export type UploadContext = "application" | "leave" | "correction" | "complaint" | "contract" | "document";
+export type UploadContext = "application" | "leave" | "correction" | "complaint" | "contract" | "document" | "inventory" | "task";
 
 export interface UploadPolicy {
   kinds: SniffedKind[];
@@ -34,6 +34,7 @@ export interface UploadPolicy {
 
 const DOCUMENTS: SniffedKind[] = ["pdf", "jpeg", "png", "webp", "docx"];
 const EVIDENCE: SniffedKind[] = ["pdf", "jpeg", "png", "webp"];
+const WORK_PROOF: SniffedKind[] = ["pdf", "jpeg", "png", "webp", "docx", "xlsx"];
 
 export const UPLOAD_POLICY: Record<UploadContext, UploadPolicy> = {
   application: { kinds: DOCUMENTS, maxBytes: 8 * 1024 * 1024, hourlyLimit: 40 },
@@ -44,6 +45,10 @@ export const UPLOAD_POLICY: Record<UploadContext, UploadPolicy> = {
   contract: { kinds: EVIDENCE, maxBytes: 15 * 1024 * 1024, hourlyLimit: 200 },
   /** Per-employee payslips and appraisals HR produced outside the system. */
   document: { kinds: ["pdf"], maxBytes: 15 * 1024 * 1024, hourlyLimit: 500 },
+  /** Asset photos and receipts: a monthly round can touch many assets in one sitting. */
+  inventory: { kinds: EVIDENCE, maxBytes: 8 * 1024 * 1024, hourlyLimit: 300 },
+  /** Proof that a daily attendance task was done. */
+  task: { kinds: WORK_PROOF, maxBytes: 15 * 1024 * 1024, hourlyLimit: 60 },
 };
 
 /** Browser `accept` attribute for a context — a hint only; the server decides. */
@@ -54,6 +59,8 @@ export const ACCEPT_ATTR: Record<UploadContext, string> = {
   complaint: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*",
   contract: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*",
   document: ".pdf,application/pdf",
+  inventory: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*",
+  task: ".pdf,.jpg,.jpeg,.png,.webp,.docx,.xlsx,application/pdf,image/*",
 };
 
 export const ACCEPT_LABEL: Record<UploadContext, string> = {
@@ -63,6 +70,8 @@ export const ACCEPT_LABEL: Record<UploadContext, string> = {
   complaint: "PDF, JPG, PNG, atau WebP",
   contract: "PDF atau foto hasil pindai",
   document: "PDF",
+  inventory: "Foto (JPG, PNG, WebP) atau PDF",
+  task: "Foto, PDF, Word, atau Excel",
 };
 
 /**

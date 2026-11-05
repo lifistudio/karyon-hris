@@ -1,4 +1,4 @@
-import { runAttendanceAlerts } from "@/lib/hr/attendance-alerts";
+import { runAttendanceAlerts, runInventoryAlerts } from "@/lib/hr/attendance-alerts";
 
 const INTERVAL_MS = 5 * 60_000;
 let started = false;
@@ -17,6 +17,7 @@ export function startAttendanceScheduler() {
     running = true;
     try {
       await runAttendanceAlerts();
+      await runInventoryAlerts();
     } catch (error) {
       console.error("[ATTENDANCE-ALERTS] tick failed:", error instanceof Error ? error.message : "unknown");
     } finally {

@@ -1,9 +1,11 @@
 "use client";
 
 import React from "react";
+import { FileText } from "@/components/icons";
 import { Input, cn } from "@/components/ui";
+import { FileOrLinkInput, type AttachmentItem } from "@/components/ui/FileOrLinkInput";
 import { INVENTORY_CATEGORY_LABELS, INVENTORY_CONDITION_LABELS } from "@/lib/hr/labels";
-import { CHECK_RESULT_LABELS, type CheckItem, type CheckResult, type SpecValue } from "@/lib/inventory/templates";
+import { BASELINE_RESULTS, CHECK_RESULTS, CHECK_RESULT_LABELS, type CheckItem, type CheckResult, type SpecValue, type StoredPhoto } from "@/lib/inventory/templates";
 
 export type Condition = "good" | "damaged" | "lost";
 
@@ -14,8 +16,16 @@ export const conditionTone = (c?: string | null) => (c === "good" ? "success" : 
 
 const resultTone: Record<CheckResult, string> = {
   ok: "bg-success-soft text-success",
+  repaired: "bg-info-soft text-info",
+  replaced: "bg-info-soft text-info",
   issue: "bg-danger-soft text-danger",
   na: "bg-background-tertiary-default text-muted",
+};
+
+const NOTE_HINT: Partial<Record<CheckResult, string>> = {
+  issue: "Jelaskan masalahnya, misalnya: layar retak di sudut kiri",
+  repaired: "Apa yang diperbaiki, misalnya: engsel diganti di servis resmi",
+  replaced: "Apa penggantinya, misalnya: baterai baru, charger 65W",
 };
 
 /** A small segmented control: one choice of a few, all visible at once. */
@@ -35,7 +45,7 @@ export function Segmented<T extends string>({
   size?: "sm" | "md";
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex max-w-full gap-1 rounded-full bg-background-secondary-default p-1">
+    <div role="radiogroup" aria-label={label} className="inline-flex max-w-full flex-wrap gap-1 rounded-[1.125rem] bg-background-secondary-default p-1">
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -79,11 +89,14 @@ export function ChecklistEditor({
   onChange,
   baseline,
   previous,
+  routine = false,
 }: {
   items: CheckItem[];
   onChange: (items: CheckItem[]) => void;
   baseline?: CheckItem[] | null;
   previous?: CheckItem[] | null;
+  /** A routine check can also say a part was repaired or replaced since last time. */
+  routine?: boolean;
 }) {
   if (!items.length) return <p className="text-body-sm text-muted">Kategori ini belum punya daftar periksa. Tambahkan di menu Kategori.</p>;
   const set = (i: number, patch: Partial<CheckItem>) => onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
@@ -111,16 +124,16 @@ export function ChecklistEditor({
                 label={item.label}
                 value={item.result}
                 onChange={(result) => set(i, { result })}
-                options={(["ok", "issue", "na"] as CheckResult[]).map((r) => ({ value: r, label: CHECK_RESULT_LABELS[r], tone: resultTone[r] }))}
+                options={(routine ? CHECK_RESULTS : BASELINE_RESULTS).map((r) => ({ value: r, label: CHECK_RESULT_LABELS[r], tone: resultTone[r] }))}
               />
             </div>
-            {(item.result === "issue" || item.note) && (
+            {(item.result === "issue" || item.result === "repaired" || item.result === "replaced" || item.note) && (
               <Input
                 aria-label={`Catatan ${item.label}`}
                 value={item.note ?? ""}
                 maxLength={300}
                 onChange={(e) => set(i, { note: e.target.value })}
-                placeholder={item.result === "issue" ? "Jelaskan masalahnya, misalnya: layar retak di sudut kiri" : "Catatan (opsional)"}
+                placeholder={NOTE_HINT[item.result] ?? "Catatan (opsional)"}
               />
             )}
           </li>
@@ -184,4 +197,36 @@ export function ChecklistView({ items }: { items?: CheckItem[] | null }) {
       ))}
     </ul>
   );
+}
+
+/** A stored photo with the short-lived link the API minted for it. */
+export type ShownPhoto = StoredPhoto & { href: string };
+
+/** Photos open at full size in a new tab; a PDF shows as a named file. */
+export function PhotoGrid({ photos, label = "Foto" }: { photos?: ShownPhoto[] | null; label?: string }) {
+  if (!photos?.length) return null;
+  return (
+    <ul aria-label={label} className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+      {photos.map((photo) => (
+        <li key={photo.key} className="min-w-0">
+          <a href={photo.href} target="_blank" rel="noreferrer" title={photo.name} className="block aspect-square overflow-hidden rounded-xl bg-background-tertiary-default outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]">
+            {photo.mime.startsWith("image/") ? (
+              // eslint-disable-next-line @next/next/no-img-element -- short-lived signed link
+              <img src={photo.href} alt={photo.name} loading="lazy" className="size-full object-cover transition-opacity hover:opacity-85" />
+            ) : (
+              <span className="flex size-full flex-col items-center justify-center gap-1 p-2 text-center">
+                <FileText className="size-5 text-subtle" aria-hidden />
+                <span className="line-clamp-2 break-all text-label text-muted">{photo.name}</span>
+              </span>
+            )}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Photo upload for a check, handover or repair; evidence stays on this server, so no links. */
+export function PhotoField({ value, onChange, disabled, max = 8 }: { value: AttachmentItem[]; onChange: (items: AttachmentItem[]) => void; disabled?: boolean; max?: number }) {
+  return <FileOrLinkInput value={value} onChange={onChange} context="inventory" multiple maxFiles={max} allowLink={false} disabled={disabled} />;
 }

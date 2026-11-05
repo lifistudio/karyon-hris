@@ -3,7 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, FileText, Package } from "@/components/icons";
 import { Alert, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, SkeletonCards, Tabs, Textarea } from "@/components/ui";
-import { ChecklistView, SpecList, categoryLabel, conditionLabel, conditionTone } from "@/components/inventory/parts";
+import { ChecklistView, PhotoField, PhotoGrid, SpecList, categoryLabel, conditionLabel, conditionTone, type ShownPhoto } from "@/components/inventory/parts";
+import { attachmentProblem, toAttachmentInputs, type AttachmentItem } from "@/components/ui/FileOrLinkInput";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/client-api";
 import { formatDate } from "@/lib/time";
@@ -15,10 +16,14 @@ interface InventoryAssignment {
   handoverDate: string;
   handoverCondition?: string;
   handoverChecklist?: CheckItem[];
+  handoverSpecs?: SpecValue[];
+  handoverPhotos?: ShownPhoto[];
+  initialPhotos?: ShownPhoto[];
   handoverReading?: number | null;
   handoverNotes?: string;
   signedAt?: string | null;
   disputeNote?: string;
+  openReport?: { description: string; createdAt: string } | null;
   status: "pending_handover" | "active" | "disputed";
 }
 
@@ -31,6 +36,7 @@ export default function InventoryEmployeePage() {
   const [loadError, setLoadError] = useState("");
   const [selected, setSelected] = useState<InventoryAssignment | null>(null);
   const [mode, setMode] = useState<"sign" | "dispute">("sign");
+  const [reporting, setReporting] = useState<InventoryAssignment | null>(null);
 
   const fetchMine = useCallback(async () => {
     setLoading(true);
@@ -111,6 +117,11 @@ export default function InventoryEmployeePage() {
                           <CheckCircle2 className="size-4" aria-hidden />
                           BAST ditandatangani {formatDate(asg.signedAt ?? asg.handoverDate)}
                         </p>
+                        {asg.openReport ? (
+                          <Alert tone="warning">Laporan Anda sedang ditangani tim GA: “{asg.openReport.description}”</Alert>
+                        ) : (
+                          <div><Button variant="secondary" size="sm" icon={AlertTriangle} onClick={() => setReporting(asg)}>Laporkan masalah</Button></div>
+                        )}
                       </>
                     )}
                   </Card>
@@ -119,6 +130,14 @@ export default function InventoryEmployeePage() {
             </section>
           )}
         </div>
+      )}
+
+      {reporting && (
+        <ReportModal
+          asg={reporting}
+          onClose={() => setReporting(null)}
+          onDone={(message) => { setReporting(null); toast.success("Laporan terkirim", message); void fetchMine(); }}
+        />
       )}
 
       {selected && (
@@ -167,8 +186,14 @@ function HandoverDetails({ asg }: { asg: InventoryAssignment }) {
       </div>
       <div>
         <p className="mb-2 text-label font-semibold text-subtle">Spesifikasi</p>
-        <SpecList specs={asg.inventoryId.specs} />
+        <SpecList specs={asg.handoverSpecs?.length ? asg.handoverSpecs : asg.inventoryId.specs} />
       </div>
+      {(asg.handoverPhotos?.length || asg.initialPhotos?.length) ? (
+        <div>
+          <p className="mb-2 text-label font-semibold text-subtle">Foto dari GA</p>
+          <PhotoGrid photos={asg.handoverPhotos?.length ? asg.handoverPhotos : asg.initialPhotos} label="Foto dari GA" />
+        </div>
+      ) : null}
       {asg.handoverChecklist && asg.handoverChecklist.length > 0 && (
         <div>
           <p className="mb-2 text-label font-semibold text-subtle">Hasil pemeriksaan GA</p>
@@ -177,6 +202,54 @@ function HandoverDetails({ asg }: { asg: InventoryAssignment }) {
       )}
       {asg.handoverNotes && <p className="text-body-sm text-foreground">Kelengkapan: {asg.handoverNotes}</p>}
     </div>
+  );
+}
+
+function ReportModal({ asg, onClose, onDone }: { asg: InventoryAssignment; onClose: () => void; onDone: (message: string) => void }) {
+  const [note, setNote] = useState("");
+  const [photos, setPhotos] = useState<AttachmentItem[]>([]);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (note.trim().length < 5) { setError("Jelaskan masalahnya."); return; }
+    const problem = attachmentProblem(photos);
+    if (problem) { setError(problem); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const res = await api.post("/api/v1/inventory/self", { action: "report", assignmentId: asg._id, note, photos: toAttachmentInputs(photos) });
+      onDone(res.message ?? "");
+    } catch (err) {
+      setError(errorMessage(err, "Laporan gagal dikirim."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Laporkan masalah aset"
+      description={`${asg.inventoryId.name} · ${asg.inventoryId.code}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Batal</Button>
+          <Button onClick={submit} loading={saving}>Kirim laporan</Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {error && <Alert tone="danger">{error}</Alert>}
+        <Field label="Apa yang terjadi?" required>
+          <Textarea rows={4} value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} placeholder="Contoh: layar berkedip sejak kemarin, atau aset hilang saat perjalanan dinas" />
+        </Field>
+        <Field label="Foto (opsional)">
+          <PhotoField value={photos} onChange={setPhotos} disabled={saving} />
+        </Field>
+      </div>
+    </Modal>
   );
 }
 

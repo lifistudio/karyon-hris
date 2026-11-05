@@ -12,6 +12,8 @@ export const EXPORT_DATASETS = {
   kpi: { label: "KPI & kinerja", module: "kpi", needs: "kpiPeriod", description: "Nilai akhir, predikat, dan status penilaian kinerja." },
   contracts: { label: "Kontrak kerja", module: "contracts", needs: "none", description: "Nomor, jenis, masa berlaku, dan status kontrak." },
   inventory: { label: "Inventaris aset", module: "inventory", needs: "none", description: "Daftar aset, kondisi, dan pemegang saat ini." },
+  inventory_checks: { label: "Audit inventaris bulanan", module: "inventory", needs: "period", description: "Hasil pengecekan setiap aset dalam satu bulan: kondisi, temuan, perbaikan, dan pemeriksa. Aset yang belum dicek ikut tercantum." },
+  attendance_tasks: { label: "Task harian karyawan", module: "attendance", needs: "period", description: "Task harian per karyawan dalam satu bulan beserta status dan buktinya." },
   candidates: { label: "Pelamar", module: "recruitment", needs: "none", description: "Kandidat rekrutmen, sumber, tahap, dan status." },
 } as const;
 

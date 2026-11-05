@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Boxes, CalendarRange, Cake, Fingerprint, MessageSquareWarning, ReceiptText, ScrollText, Repeat2, Target, UserRound } from "@/components/icons";
+import { BookOpen, Boxes, CalendarRange, Cake, Fingerprint, ListChecks, MessageSquareWarning, ReceiptText, ScrollText, Repeat2, Target, UserRound } from "@/components/icons";
 import { AppShell, type NavSection } from "@/components/shell/AppShell";
 
 /**
@@ -13,6 +13,7 @@ const sections: NavSection[] = [
     label: "Kehadiran",
     items: [
       { name: "Presensi mandiri", href: "/portal/attendance", icon: Fingerprint },
+      { name: "Task tim", href: "/portal/team-tasks", icon: ListChecks, permission: "team" },
       { name: "Izin & cuti", href: "/portal/leave", icon: CalendarRange },
       { name: "Tukar libur", href: "/portal/holiday-swap", icon: Repeat2 },
     ],

@@ -4,11 +4,12 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pagination } from "@/components/ui/Pagination";
 import { Combobox } from "@/components/ui/Combobox";
 import { DatePicker } from "@/components/ui/DatePicker";
-import { Boxes, Camera, ChevronDown, ClipboardCheck, Eye, FileSignature, Package, Plus, RefreshCcw, ScanLine, Search, Tag, Trash2, UserCheck, UserPlus } from "@/components/icons";
+import { Boxes, Camera, ChevronDown, ClipboardCheck, Download, Eye, FileSignature, Package, Plus, RefreshCcw, ScanLine, Search, Tag, Trash2, UserCheck, UserPlus } from "@/components/icons";
 import { CameraScanner } from "@/components/inventory/CameraScanner";
 import { AssetDrawer, type AssetDetail } from "@/components/inventory/AssetDrawer";
-import { ChecklistEditor, ConditionPicker, Segmented, SpecFields, categoryLabel, conditionLabel, conditionTone, type Condition } from "@/components/inventory/parts";
-import { Alert, Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Select, SkeletonList, StatCard, TableWrap, Td, Textarea, Th, Tr, cn } from "@/components/ui";
+import { ChecklistEditor, ConditionPicker, PhotoField, Segmented, SpecFields, categoryLabel, conditionLabel, conditionTone, type Condition } from "@/components/inventory/parts";
+import { FileOrLinkInput, attachmentProblem, toAttachmentInputs, type AttachmentItem } from "@/components/ui/FileOrLinkInput";
+import { Alert, Badge, Button, ButtonLink, Card, EmptyState, Field, Input, Modal, PageHeader, Select, SkeletonList, StatCard, TableWrap, Td, Textarea, Th, Tr, cn } from "@/components/ui";
 import { confirmDialog } from "@/components/ui/ConfirmHost";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/client-api";
@@ -20,6 +21,7 @@ import {
   DEFAULT_TEMPLATES,
   blankChecklist,
   compareCheck,
+  describeChanges,
   templateFor,
   type CategoryTemplate,
   type CheckItem,
@@ -52,7 +54,7 @@ interface EmployeeOption {
 }
 
 type StatusFilter = "" | "available" | "pending" | "held" | "unchecked" | "damaged" | "lost";
-type ActionKind = "edit" | "assign" | "return" | "check";
+type ActionKind = "edit" | "assign" | "transfer" | "return" | "check" | "repair" | "paper";
 
 const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
   { value: "", label: "Semua status" },
@@ -204,6 +206,7 @@ export default function InventoryAdminPage() {
         description="Daftarkan aset beserta kondisi awalnya, serahkan ke karyawan dengan BAST digital, lalu cek kondisinya setiap bulan."
         actions={
           <>
+            <ButtonLink variant="secondary" icon={Download} href={`/api/v1/reports/export?dataset=inventory_checks&period=${period}&format=xlsx`}>Ekspor audit</ButtonLink>
             <Button variant="secondary" icon={Tag} onClick={() => setIsCategoryOpen(true)}>Kategori</Button>
             <Button variant="secondary" icon={ScanLine} onClick={() => setIsScanOpen(true)}>Pindai & cek</Button>
             <Button icon={Plus} onClick={() => setIsCreateOpen(true)}>Tambah aset</Button>
@@ -229,7 +232,7 @@ export default function InventoryAdminPage() {
           <ChevronDown className={cn("size-4 text-subtle transition-transform", showFlow && "rotate-180")} aria-hidden />
         </button>
         {showFlow && (
-          <ol className="grid grid-cols-1 gap-2 px-4 pb-4 sm:grid-cols-2 lg:grid-cols-5">
+          <ol className="grid grid-cols-1 gap-2 px-4 pb-4 sm:grid-cols-2 2xl:grid-cols-5">
             {FLOW_STEPS.map((step, i) => (
               <li key={step.title} className="flex gap-3 rounded-2xl bg-background-secondary-default p-3">
                 <span className="grid size-8 shrink-0 place-items-center rounded-full bg-background-primary-default text-body-sm font-semibold text-heading shadow-xs">{i + 1}</span>
@@ -340,8 +343,11 @@ export default function InventoryAdminPage() {
         onClose={() => setDrawerId(null)}
         onEdit={(d) => startAction("edit", d.asset._id, d)}
         onAssign={(d) => startAction("assign", d.asset._id, d)}
+        onTransfer={(d) => startAction("transfer", d.asset._id, d)}
         onReturn={(d) => startAction("return", d.asset._id, d)}
         onCheck={(d) => startAction("check", d.asset._id, d)}
+        onRepair={(d) => startAction("repair", d.asset._id, d)}
+        onPaperBast={(d) => startAction("paper", d.asset._id, d)}
         onCancelHandover={cancelHandover}
       />
 
@@ -364,9 +370,10 @@ export default function InventoryAdminPage() {
           onSaved={() => { setAction(null); refreshAll(); toast.success("Data aset diperbarui"); }}
         />
       )}
-      {action?.kind === "assign" && (
+      {(action?.kind === "assign" || action?.kind === "transfer") && (
         <HandoverModal
           detail={action.detail}
+          transfer={action.kind === "transfer"}
           template={templateFor(action.detail.asset.category, templates)}
           onClose={() => setAction(null)}
           onDone={(msg) => { setAction(null); refreshAll(); toast.success("Aset diserahkan", msg); }}
@@ -378,6 +385,21 @@ export default function InventoryAdminPage() {
           template={templateFor(action.detail.asset.category, templates)}
           onClose={() => setAction(null)}
           onDone={(msg) => { setAction(null); refreshAll(); toast.success("Pengembalian dicatat", msg); }}
+        />
+      )}
+      {action?.kind === "repair" && (
+        <RepairModal
+          detail={action.detail}
+          template={templateFor(action.detail.asset.category, templates)}
+          onClose={() => setAction(null)}
+          onDone={(msg) => { setAction(null); refreshAll(); toast.success("Riwayat aset diperbarui", msg); }}
+        />
+      )}
+      {action?.kind === "paper" && (
+        <PaperBastModal
+          detail={action.detail}
+          onClose={() => setAction(null)}
+          onDone={(msg) => { setAction(null); refreshAll(); toast.success("BAST kertas tersimpan", msg); }}
         />
       )}
       {action?.kind === "check" && (
@@ -440,12 +462,12 @@ function CheckCell({ asset }: { asset: AssetRow }) {
   if (asset.monthlyCheck) {
     return (
       <div className="space-y-1">
-        <Badge tone={asset.monthlyCheck.status === "flagged" ? "danger" : "success"}>{asset.monthlyCheck.status === "flagged" ? "Ada temuan" : "Sudah dicek"}</Badge>
+        <Badge tone={asset.monthlyCheck.status === "flagged" ? "danger" : asset.monthlyCheck.status === "changed" ? "info" : "success"}>{asset.monthlyCheck.status === "flagged" ? "Ada temuan" : asset.monthlyCheck.status === "changed" ? "Ada perubahan" : "Sudah dicek"}</Badge>
         <div className="text-label text-subtle">{formatDate(asset.monthlyCheck.auditDate)}</div>
       </div>
     );
   }
-  return asset.condition === "lost" ? <span className="text-subtle">-</span> : <span className="text-body-sm text-warning">Belum dicek</span>;
+  return asset.condition === "lost" ? <span className="text-subtle">Tidak dicek</span> : <span className="text-body-sm text-warning">Belum dicek</span>;
 }
 
 function AssetActions({ asset, onOpen, onAction }: { asset: AssetRow; onOpen: () => void; onAction: (kind: ActionKind, id: string) => void }) {
@@ -454,7 +476,7 @@ function AssetActions({ asset, onOpen, onAction }: { asset: AssetRow; onOpen: ()
   return (
     <div className="flex items-center justify-end gap-1">
       <Button variant="ghost" size="icon" aria-label={`Detail ${asset.name}`} title="Detail & riwayat" icon={Eye} onClick={onOpen} />
-      {!isLost && <Button variant="ghost" size="icon" aria-label={`Cek ${asset.name}`} title="Catat pengecekan" icon={ClipboardCheck} onClick={() => onAction("check", asset._id)} />}
+      <Button variant="ghost" size="icon" aria-label={isLost ? `Catat ${asset.name} ditemukan` : `Cek ${asset.name}`} title={isLost ? "Catat aset ditemukan" : "Catat pengecekan"} icon={ClipboardCheck} onClick={() => onAction("check", asset._id)} />
       {!asg && !isLost && <Button variant="ghost" size="icon" aria-label={`Serahkan ${asset.name}`} title="Serahkan ke karyawan" icon={UserPlus} onClick={() => onAction("assign", asset._id)} />}
       {asg?.status === "active" && <Button variant="ghost" size="icon" aria-label={`Terima pengembalian ${asset.name}`} title="Terima pengembalian" icon={RefreshCcw} onClick={() => onAction("return", asset._id)} />}
     </div>
@@ -493,6 +515,7 @@ function AssetFormModal({
   const [checklist, setChecklist] = useState<CheckItem[]>(() => blankChecklist(template));
   const [reading, setReading] = useState("");
   const [initialNotes, setInitialNotes] = useState("");
+  const [photos, setPhotos] = useState<AttachmentItem[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -503,12 +526,14 @@ function AssetFormModal({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const problem = attachmentProblem(photos);
+    if (problem) { setError(problem); return; }
     setSaving(true);
     setError("");
     try {
       const body: Record<string, unknown> = { name, category, specs, location, notes, acquiredAt: acquiredAt || null };
       if (editing) body.id = editing._id;
-      else Object.assign(body, { code, initialCondition: condition, initialChecklist: checklist, initialReading: reading || null, initialNotes });
+      else Object.assign(body, { code, initialCondition: condition, initialChecklist: checklist, initialReading: reading || null, initialNotes, initialPhotos: toAttachmentInputs(photos) });
       const res = await api.post<{ _id: string }>("/api/v1/inventory", body);
       onSaved(res.data?._id ?? editing?._id ?? "");
     } catch (err) {
@@ -524,7 +549,7 @@ function AssetFormModal({
       onClose={onClose}
       size="lg"
       title={editing ? "Ubah data aset" : "Tambah aset"}
-      description={editing ? "Kondisi aset diubah lewat pengecekan, serah terima, atau pengembalian agar selalu tercatat." : "Isi spesifikasi sesuai kategori lalu catat kondisi awal. Kondisi awal menjadi pembanding setiap pengecekan bulanan."}
+      description={editing ? "Kondisi aset diubah lewat pengecekan, serah terima, atau pengembalian. Perubahan spesifikasi di sini tercatat di riwayat aset." : "Isi spesifikasi sesuai kategori lalu catat kondisi awal. Kondisi awal menjadi pembanding setiap pengecekan bulanan."}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Batal</Button>
@@ -574,10 +599,13 @@ function AssetFormModal({
           <section className="space-y-3">
             <div>
               <h3 className="form-section">3. Kondisi awal</h3>
-              <p className="text-body-sm text-muted">Periksa aset sekarang. Hasil ini disimpan permanen sebagai kondisi awal.</p>
+              <p className="text-body-sm text-muted">Periksa aset sekarang. Spesifikasi, foto, dan hasil ini disimpan permanen sebagai kondisi awal.</p>
             </div>
             <ConditionPicker value={condition} onChange={setCondition} allowLost={false} label="Kondisi awal" />
             <ChecklistEditor items={checklist} onChange={setChecklist} />
+            <Field label="Foto kondisi awal" hint="Ambil dari tiap sisi, termasuk label nomor seri dan cacat yang sudah ada.">
+              <PhotoField value={photos} onChange={setPhotos} disabled={saving} />
+            </Field>
             {template.reading && (
               <Field label={template.reading}>
                 <Input type="number" min={0} inputMode="numeric" value={reading} onChange={(e) => setReading(e.target.value)} />
@@ -604,8 +632,11 @@ function latestChecklist(detail: AssetDetail): CheckItem[] | null {
   return firstFilled(...detail.checks.map((c) => c.checklist), detail.asset.initialCheck?.checklist);
 }
 
-function HandoverModal({ detail, template, onClose, onDone }: { detail: AssetDetail; template: CategoryTemplate; onClose: () => void; onDone: (msg: string) => void }) {
+function HandoverModal({ detail, template, transfer, onClose, onDone }: { detail: AssetDetail; template: CategoryTemplate; transfer: boolean; onClose: () => void; onDone: (msg: string) => void }) {
   const asset = detail.asset;
+  const holder = transfer ? detail.assignments.find((a) => a.status === "active") : null;
+  const lastHolder = !transfer ? detail.assignments.find((a) => a.status === "returned")?.employeeId ?? null : null;
+  const [photos, setPhotos] = useState<AttachmentItem[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [employeeId, setEmployeeId] = useState("");
   const [condition, setCondition] = useState<Condition>(asset.condition === "damaged" ? "damaged" : "good");
@@ -621,17 +652,20 @@ function HandoverModal({ detail, template, onClose, onDone }: { detail: AssetDet
       .catch((err) => setError(errorMessage(err, "Daftar karyawan gagal dimuat.")));
   }, []);
 
-  const options = useMemo(() => employees.map((e) => ({
+  const options = useMemo(() => employees.filter((e) => e._id !== holder?.employeeId?._id).map((e) => ({
     value: e._id,
     label: e.name,
     hint: [e.employeeId, e.divisionId?.name].filter(Boolean).join(" · ") || undefined,
-  })), [employees]);
+  })), [employees, holder]);
+  const canReassignLast = Boolean(lastHolder && employees.some((e) => e._id === lastHolder._id));
 
   const submit = async () => {
+    const problem = attachmentProblem(photos);
+    if (problem) { setError(problem); return; }
     setSaving(true);
     setError("");
     try {
-      const res = await api.post("/api/v1/inventory/handover", { action: "assign", inventoryId: asset._id, employeeId, condition, checklist, reading: reading || null, notes });
+      const res = await api.post("/api/v1/inventory/handover", { action: "assign", inventoryId: asset._id, employeeId, condition, checklist, reading: reading || null, notes, photos: toAttachmentInputs(photos), transfer });
       onDone(res.message ?? "");
     } catch (err) {
       setError(errorMessage(err, "Aset gagal diserahkan."));
@@ -645,12 +679,14 @@ function HandoverModal({ detail, template, onClose, onDone }: { detail: AssetDet
       open
       onClose={onClose}
       size="lg"
-      title="Serahkan aset ke karyawan"
-      description="Catat kondisi aset saat diserahkan. Karyawan memeriksa catatan ini lalu menandatangani BAST di portal, atau melaporkan bila tidak sesuai."
+      title={transfer ? "Pindahkan aset ke karyawan lain" : "Serahkan aset ke karyawan"}
+      description={transfer
+        ? `Serah terima ${holder?.employeeId?.name ?? "pemegang saat ini"} ditutup dengan kondisi di bawah, lalu penerima baru diminta menandatangani BAST.`
+        : "Catat kondisi aset saat diserahkan. Karyawan memeriksa catatan ini lalu menandatangani BAST di portal, atau melaporkan bila tidak sesuai."}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Batal</Button>
-          <Button onClick={submit} loading={saving} disabled={!employeeId}>Serahkan & minta tanda tangan</Button>
+          <Button onClick={submit} loading={saving} disabled={!employeeId}>{transfer ? "Pindahkan & minta tanda tangan" : "Serahkan & minta tanda tangan"}</Button>
         </>
       }
     >
@@ -660,6 +696,11 @@ function HandoverModal({ detail, template, onClose, onDone }: { detail: AssetDet
         <Field label="Karyawan penerima" required>
           <Combobox value={employeeId} onChange={setEmployeeId} options={options} placeholder="Cari nama atau nomor karyawan…" sheetTitle="Karyawan penerima" aria-label="Karyawan penerima" />
         </Field>
+        {canReassignLast && lastHolder && employeeId !== lastHolder._id && (
+          <button type="button" onClick={() => setEmployeeId(lastHolder._id)} className="cursor-pointer text-body-sm font-medium text-primary hover:underline">
+            Serahkan lagi ke pemegang terakhir: {lastHolder.name}
+          </button>
+        )}
         <section className="space-y-3">
           <h3 className="text-body font-semibold text-heading">Kondisi saat diserahkan</h3>
           <ConditionPicker value={condition} onChange={setCondition} allowLost={false} />
@@ -671,6 +712,9 @@ function HandoverModal({ detail, template, onClose, onDone }: { detail: AssetDet
           )}
           <Field label="Kelengkapan & catatan serah terima">
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Contoh: termasuk charger 65W dan tas laptop" maxLength={500} />
+          </Field>
+          <Field label="Foto saat diserahkan" hint="Karyawan melihat foto ini sebelum menandatangani.">
+            <PhotoField value={photos} onChange={setPhotos} disabled={saving} />
           </Field>
         </section>
       </div>
@@ -685,14 +729,17 @@ function ReturnModal({ detail, template, onClose, onDone }: { detail: AssetDetai
   const [checklist, setChecklist] = useState<CheckItem[]>(() => blankChecklist(template, firstFilled(held?.handoverChecklist, latestChecklist(detail))));
   const [reading, setReading] = useState("");
   const [notes, setNotes] = useState("");
+  const [photos, setPhotos] = useState<AttachmentItem[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const submit = async () => {
+    const problem = attachmentProblem(photos);
+    if (problem) { setError(problem); return; }
     setSaving(true);
     setError("");
     try {
-      const res = await api.post("/api/v1/inventory/handover", { action: "return", inventoryId: asset._id, condition, checklist, reading: reading || null, notes });
+      const res = await api.post("/api/v1/inventory/handover", { action: "return", inventoryId: asset._id, condition, checklist, reading: reading || null, notes, photos: toAttachmentInputs(photos) });
       onDone(res.message ?? "");
     } catch (err) {
       setError(errorMessage(err, "Pengembalian gagal dicatat."));
@@ -727,7 +774,7 @@ function ReturnModal({ detail, template, onClose, onDone }: { detail: AssetDetai
         {held?.handoverCondition && condition !== held.handoverCondition && (
           <Alert tone="warning">Kondisi berbeda dari saat diserahkan ({conditionLabel(held.handoverCondition)}). Jelaskan penyebabnya di catatan.</Alert>
         )}
-        <ChecklistEditor items={checklist} onChange={setChecklist} baseline={firstFilled(held?.handoverChecklist, asset.initialCheck?.checklist)} />
+        <ChecklistEditor routine items={checklist} onChange={setChecklist} baseline={firstFilled(held?.handoverChecklist, asset.initialCheck?.checklist)} />
         {template.reading && (
           <Field label={template.reading} hint={held?.handoverReading != null ? `Saat diserahkan: ${held.handoverReading.toLocaleString("id-ID")}` : undefined}>
             <Input type="number" min={0} inputMode="numeric" value={reading} onChange={(e) => setReading(e.target.value)} />
@@ -735,6 +782,9 @@ function ReturnModal({ detail, template, onClose, onDone }: { detail: AssetDetai
         )}
         <Field label="Catatan pengembalian">
           <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Contoh: charger tidak dikembalikan" maxLength={500} />
+        </Field>
+        <Field label="Foto saat dikembalikan">
+          <PhotoField value={photos} onChange={setPhotos} disabled={saving} />
         </Field>
       </div>
     </Modal>
@@ -776,16 +826,22 @@ function CheckModal({ detail, template, period, onClose, onDone }: { detail: Ass
   const [specChecks, setSpecChecks] = useState<SpecCheck[]>(() => (asset.specs ?? []).map((s) => ({ label: s.label, expected: s.value, matches: true })));
   const [reading, setReading] = useState("");
   const [notes, setNotes] = useState("");
+  const [photos, setPhotos] = useState<AttachmentItem[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const findings = compareCheck({ condition, checklist, specChecks }, baseline, INVENTORY_CONDITION_LABELS);
+  const changes = describeChanges({ checklist, specChecks });
+  const setSpec = (i: number, patch: Partial<SpecCheck>) => setSpecChecks(specChecks.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
 
   const submit = async () => {
+    const problem = attachmentProblem(photos);
+    if (problem) { setError(problem); return; }
+    if (specChecks.some((s) => s.replaced && !s.actual?.trim())) { setError("Isi nilai baru untuk spesifikasi yang diganti."); return; }
     setSaving(true);
     setError("");
     try {
-      const res = await api.post<{ status: string }>("/api/v1/inventory/audit", { inventoryId: asset._id, type, condition, checklist, specChecks, reading: reading || null, notes });
+      const res = await api.post<{ status: string }>("/api/v1/inventory/audit", { inventoryId: asset._id, type, condition, checklist, specChecks, reading: reading || null, notes, photos: toAttachmentInputs(photos) });
       onDone(res.message ?? "", res.data?.status === "flagged");
     } catch (err) {
       setError(errorMessage(err, "Pengecekan gagal disimpan."));
@@ -840,7 +896,7 @@ function CheckModal({ detail, template, period, onClose, onDone }: { detail: Ass
         <section className="space-y-3">
           <h3 className="text-body font-semibold text-heading">Kondisi sekarang</h3>
           <ConditionPicker value={condition} onChange={setCondition} />
-          <ChecklistEditor items={checklist} onChange={setChecklist} baseline={baseline?.checklist} previous={previous?.checklist} />
+          <ChecklistEditor routine items={checklist} onChange={setChecklist} baseline={baseline?.checklist} previous={previous?.checklist} />
           {template.reading && (
             <Field label={template.reading} hint={lastReading != null ? `Pembacaan terakhir: ${lastReading.toLocaleString("id-ID")}` : undefined}>
               <Input type="number" min={0} inputMode="numeric" value={reading} onChange={(e) => setReading(e.target.value)} />
@@ -852,7 +908,7 @@ function CheckModal({ detail, template, period, onClose, onDone }: { detail: Ass
           <section className="space-y-3">
             <div>
               <h3 className="text-body font-semibold text-heading">Cocokkan spesifikasi</h3>
-              <p className="text-body-sm text-muted">Pastikan nomor seri dan komponen masih sama dengan catatan.</p>
+              <p className="text-body-sm text-muted">Pilih Diganti bila komponen memang sudah diganti: catatan aset ikut diperbarui. Pilih Tidak sesuai bila perbedaannya belum diketahui.</p>
             </div>
             <ul className="divide-y divide-line rounded-2xl bg-background-secondary-default">
               {specChecks.map((s, i) => (
@@ -865,21 +921,25 @@ function CheckModal({ detail, template, period, onClose, onDone }: { detail: Ass
                     <Segmented
                       size="sm"
                       label={`Spesifikasi ${s.label}`}
-                      value={s.matches ? "yes" : "no"}
-                      onChange={(v) => setSpecChecks(specChecks.map((x, idx) => (idx === i ? { ...x, matches: v === "yes" } : x)))}
+                      value={s.matches ? "yes" : s.replaced ? "replaced" : "no"}
+                      onChange={(v) => setSpec(i, { matches: v === "yes", replaced: v === "replaced" })}
                       options={[
                         { value: "yes", label: "Sesuai", tone: "bg-success-soft text-success" },
+                        { value: "replaced", label: "Diganti", tone: "bg-info-soft text-info" },
                         { value: "no", label: "Tidak sesuai", tone: "bg-danger-soft text-danger" },
                       ]}
                     />
                   </div>
+                  {s.replaced && (
+                    <Input aria-label={`Nilai baru ${s.label}`} value={s.actual ?? ""} maxLength={200} onChange={(e) => setSpec(i, { actual: e.target.value })} placeholder={`Nilai ${s.label.toLowerCase()} yang baru`} />
+                  )}
                   {!s.matches && (
                     <Input
-                      aria-label={`Temuan ${s.label}`}
+                      aria-label={`${s.replaced ? "Keterangan" : "Temuan"} ${s.label}`}
                       value={s.note ?? ""}
                       maxLength={300}
-                      onChange={(e) => setSpecChecks(specChecks.map((x, idx) => (idx === i ? { ...x, note: e.target.value } : x)))}
-                      placeholder="Yang ditemukan, misalnya: RAM terpasang 8 GB"
+                      onChange={(e) => setSpec(i, { note: e.target.value })}
+                      placeholder={s.replaced ? "Alasan atau tempat penggantian (opsional)" : "Yang ditemukan, misalnya: RAM terpasang 8 GB"}
                     />
                   )}
                 </li>
@@ -892,16 +952,156 @@ function CheckModal({ detail, template, period, onClose, onDone }: { detail: Ass
           <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Contoh: layar lecet ringan, adaptor hilang" maxLength={1000} />
         </Field>
 
-        <div className={cn("rounded-2xl p-4", findings.length ? "bg-warning-soft" : "bg-success-soft")}>
-          <p className={cn("text-body font-semibold", findings.length ? "text-warning" : "text-success")}>
-            {findings.length ? `${findings.length} perbedaan dari kondisi awal` : "Sesuai kondisi awal"}
+        <Field label="Foto pengecekan" hint="Foto kondisi terkini, terutama bagian yang berubah. Tersimpan di riwayat aset.">
+          <PhotoField value={photos} onChange={setPhotos} disabled={saving} />
+        </Field>
+
+        <div className={cn("rounded-2xl p-4", findings.length ? "bg-warning-soft" : changes.length ? "bg-info-soft" : "bg-success-soft")}>
+          <p className={cn("text-body font-semibold", findings.length ? "text-warning" : changes.length ? "text-info" : "text-success")}>
+            {findings.length ? `${findings.length} perbedaan dari kondisi awal` : changes.length ? `${changes.length} perubahan tercatat` : "Sesuai kondisi awal"}
           </p>
-          {findings.length > 0 && (
+          {findings.length + changes.length > 0 && (
             <ul className="mt-1 list-disc space-y-0.5 ps-5 text-body-sm text-foreground">
-              {findings.map((f) => <li key={f}>{f}</li>)}
+              {[...findings, ...changes].map((f) => <li key={f}>{f}</li>)}
             </ul>
           )}
         </div>
+      </div>
+    </Modal>
+  );
+}
+
+function RepairModal({ detail, template, onClose, onDone }: { detail: AssetDetail; template: CategoryTemplate; onClose: () => void; onDone: (msg: string) => void }) {
+  const asset = detail.asset;
+  const parts = useMemo(() => [...new Set([...(asset.specs ?? []).map((s) => s.label), ...template.checklist])], [asset.specs, template.checklist]);
+  const [type, setType] = useState<"repair" | "replacement">("repair");
+  const [component, setComponent] = useState("");
+  const [toValue, setToValue] = useState("");
+  const [description, setDescription] = useState("");
+  const [vendor, setVendor] = useState("");
+  const [cost, setCost] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [condition, setCondition] = useState<Condition>(asset.condition === "lost" ? "lost" : "good");
+  const [photos, setPhotos] = useState<AttachmentItem[]>([]);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const spec = asset.specs?.find((s) => s.label === component);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const problem = attachmentProblem(photos);
+    if (problem) { setError(problem); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const res = await api.post("/api/v1/inventory/events", { inventoryId: asset._id, type, component, toValue, description, vendor, cost: cost || null, eventDate: eventDate || null, condition, photos: toAttachmentInputs(photos) });
+      onDone(res.message ?? "");
+    } catch (err) {
+      setError(errorMessage(err, "Catatan gagal disimpan."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      title="Catat perbaikan atau penggantian"
+      description="Untuk pekerjaan di luar pengecekan rutin. Catatan masuk ke riwayat aset dan tidak dapat diubah."
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Batal</Button>
+          <Button type="submit" form="repair-form" loading={saving}>Simpan catatan</Button>
+        </>
+      }
+    >
+      <form id="repair-form" onSubmit={submit} className="space-y-5">
+        <AssetSummary detail={detail} />
+        {error && <Alert tone="danger">{error}</Alert>}
+        <Segmented label="Jenis pekerjaan" value={type} onChange={setType} options={[{ value: "repair", label: "Perbaikan" }, { value: "replacement", label: "Penggantian komponen" }]} />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Komponen">
+            <Select aria-label="Komponen" value={component} onChange={(e) => setComponent(e.target.value)}>
+              <option value="">Aset secara umum</option>
+              {parts.map((p) => <option key={p} value={p}>{p}</option>)}
+            </Select>
+          </Field>
+          {type === "replacement" && spec ? (
+            <Field label={`${spec.label} yang baru`} required hint={`Tercatat sekarang: ${spec.value}`}>
+              <Input required value={toValue} maxLength={200} onChange={(e) => setToValue(e.target.value)} />
+            </Field>
+          ) : (
+            <Field label="Tanggal pekerjaan">
+              <DatePicker value={eventDate} onChange={setEventDate} clearable aria-label="Tanggal pekerjaan" />
+            </Field>
+          )}
+        </div>
+        <Field label="Pekerjaan yang dilakukan" required>
+          <Textarea required rows={3} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} placeholder="Contoh: baterai diganti karena kembung, garansi servis 3 bulan" />
+        </Field>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Bengkel atau vendor">
+            <Input value={vendor} maxLength={150} onChange={(e) => setVendor(e.target.value)} />
+          </Field>
+          <Field label="Biaya (Rp)">
+            <Input type="number" min={0} inputMode="numeric" value={cost} onChange={(e) => setCost(e.target.value)} />
+          </Field>
+        </div>
+        <section className="space-y-2">
+          <h3 className="text-body font-semibold text-heading">Kondisi setelah pekerjaan</h3>
+          <ConditionPicker value={condition} onChange={setCondition} />
+        </section>
+        <Field label="Foto atau nota">
+          <PhotoField value={photos} onChange={setPhotos} disabled={saving} />
+        </Field>
+      </form>
+    </Modal>
+  );
+}
+
+function PaperBastModal({ detail, onClose, onDone }: { detail: AssetDetail; onClose: () => void; onDone: (msg: string) => void }) {
+  const open = detail.assignments.find((a) => a.status === "pending_handover");
+  const [file, setFile] = useState<AttachmentItem[]>([]);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    const problem = attachmentProblem(file);
+    if (problem) { setError(problem); return; }
+    const [document] = toAttachmentInputs(file);
+    if (!document) { setError("Unggah BAST yang sudah ditandatangani."); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const res = await api.post("/api/v1/inventory/handover", { action: "paper", inventoryId: detail.asset._id, document });
+      onDone(res.message ?? "");
+    } catch (err) {
+      setError(errorMessage(err, "BAST gagal disimpan."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Unggah BAST kertas"
+      description={`Untuk ${open?.employeeId?.name ?? "karyawan"} yang menandatangani di kertas, misalnya karena tidak punya akun portal. Aset langsung tercatat dipegang.`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Batal</Button>
+          <Button onClick={submit} loading={saving}>Simpan BAST</Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {error && <Alert tone="danger">{error}</Alert>}
+        <Field label="Scan atau foto BAST bertanda tangan" required>
+          <FileOrLinkInput value={file} onChange={setFile} context="inventory" allowLink={false} disabled={saving} />
+        </Field>
       </div>
     </Modal>
   );
@@ -947,7 +1147,6 @@ function ScanModal({ onClose, onFound }: { onClose: () => void; onFound: (id: st
       const res = await api.get<AssetRow[]>(`/api/v1/inventory?code=${encodeURIComponent(value)}&limit=1`);
       const found = res.data?.[0];
       if (!found) setError(`Aset dengan kode "${value}" tidak terdaftar.`);
-      else if (found.condition === "lost") setError(`${found.name} tercatat hilang. Ubah lewat detail aset bila sudah ditemukan.`);
       else { playBeep(); onFound(found._id); }
     } catch (err) {
       setError(errorMessage(err));

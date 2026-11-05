@@ -1,5 +1,5 @@
 import { wrapRouteHandler, apiSuccess } from "@/lib/api";
-import { requirePermission, scopeFilter } from "@/lib/guard";
+import { requireCompanyPermission } from "@/lib/guard";
 import { connectToDatabase } from "@/lib/db";
 import Employee from "@/models/Employee";
 import "@/models/Division";
@@ -10,11 +10,10 @@ import "@/models/Division";
  * carries more than a name, number and division.
  */
 export const GET = wrapRouteHandler(async (req) => {
-  const ctx = await requirePermission(req, "inventory", "write");
+  await requireCompanyPermission(req, "inventory", "write");
   await connectToDatabase();
   const q = new URL(req.url).searchParams.get("q")?.trim().slice(0, 60);
   const filter: Record<string, unknown> = {
-    ...scopeFilter(ctx, { employee: "_id", branch: "branchId", division: "divisionId" }),
     status: { $in: ["active", "onboarding"] },
   };
   if (q) {

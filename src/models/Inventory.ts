@@ -1,5 +1,5 @@
 import database, { Schema, Document, RecordId } from "@/lib/postgres";
-import type { CheckItem, SpecValue } from "@/lib/inventory/templates";
+import type { CheckItem, SpecValue, StoredPhoto } from "@/lib/inventory/templates";
 
 export type InventoryCondition = "good" | "damaged" | "lost";
 
@@ -21,6 +21,9 @@ export interface IInventory extends Document {
   initialCheck?: {
     condition: InventoryCondition;
     checklist: CheckItem[];
+    /** The specification as first registered; `specs` moves on after replacements. */
+    specs?: SpecValue[];
+    photos?: StoredPhoto[];
     reading?: number | null;
     notes?: string;
     recordedAt: Date;

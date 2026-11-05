@@ -160,7 +160,7 @@ Pertanyaan lain: lihat [dokumentasi](https://karyon.lifistudio.com/docs#troubles
 
 ## Development
 
-Prasyarat: Node.js 24 LTS, npm, dan PostgreSQL 18.
+Prasyarat: Node.js 26 LTS, npm, dan PostgreSQL 18.
 
 ```sh
 npm ci

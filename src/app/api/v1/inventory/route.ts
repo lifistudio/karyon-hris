@@ -1,5 +1,6 @@
 import { wrapRouteHandler, apiSuccess } from "@/lib/api";
-import { requirePermission, BadRequest, Conflict, NotFound } from "@/lib/guard";
+import { requireCompanyPermission, requirePermission, BadRequest, Conflict, NotFound } from "@/lib/guard";
+import database from "@/lib/postgres";
 import { logActivity } from "@/lib/audit/logger";
 import { connectToDatabase } from "@/lib/db";
 import { wibPeriodKey } from "@/lib/time";
@@ -10,12 +11,15 @@ import "@/models/Employee";
 import {
   OPEN_STATUSES,
   assignAsset,
+  claimInitialPhotos,
   getCategorySettings,
+  visibleAssetIds,
+  logSpecChanges,
   parseCondition,
   parseReading,
   returnAsset,
 } from "@/lib/inventory/server";
-import { sanitizeChecklist, sanitizeSpecs } from "@/lib/inventory/templates";
+import { diffSpecs, sanitizeChecklist, sanitizeSpecs, type SpecValue } from "@/lib/inventory/templates";
 
 /**
  * The handler only reads `_id` off an asset and `inventoryId` off an assignment;
@@ -33,8 +37,9 @@ interface LeanRef extends Record<string, unknown> {
 const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export const GET = wrapRouteHandler(async (req) => {
-  await requirePermission(req, "inventory", "read");
+  const ctx = await requirePermission(req, "inventory", "read");
   await connectToDatabase();
+  const visible = await visibleAssetIds(ctx);
 
   // Paged, searchable on the server; `code` is an exact lookup for the barcode scanner.
   const sp = new URL(req.url).searchParams;
@@ -69,6 +74,9 @@ export const GET = wrapRouteHandler(async (req) => {
       filter.condition = { $ne: "lost" };
     }
   }
+
+  // Kept apart from the status filters, which use `_id` themselves.
+  if (visible) filter.$and = [{ _id: { $in: visible } }];
 
   const [assets, total] = await Promise.all([
     Inventory.find(filter).sort({ code: 1 }).skip((page - 1) * limit).limit(limit).lean<LeanAsset[]>(),
@@ -128,7 +136,7 @@ export const GET = wrapRouteHandler(async (req) => {
  * clients; new code calls `POST /inventory/handover`.
  */
 export const POST = wrapRouteHandler(async (req) => {
-  const ctx = await requirePermission(req, "inventory", "write");
+  const ctx = await requireCompanyPermission(req, "inventory", "write");
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") throw BadRequest("Isi permintaan tidak valid.");
   await connectToDatabase();
@@ -172,6 +180,7 @@ export const POST = wrapRouteHandler(async (req) => {
     // Condition changes go through a check, handover or return so they always
     // leave a trace; the edit form only changes the description of the asset.
     const asset = await Inventory.findByIdAndUpdate(id, { $set: patch }, { new: true });
+    if (patch.specs) await logSpecChanges(ctx, id, diffSpecs(before.specs as SpecValue[] | undefined, patch.specs as SpecValue[]));
     void logActivity({ userId: ctx.user.id, action: "UPDATE_INVENTORY", module: "inventory", before, after: asset?.toObject?.() ?? null, ip: ctx.ip, userAgent: ctx.userAgent });
     return apiSuccess(asset, "Data aset diperbarui");
   }
@@ -187,27 +196,37 @@ export const POST = wrapRouteHandler(async (req) => {
   const initialCheck = {
     condition,
     checklist: sanitizeChecklist(body.initialChecklist),
+    specs: (patch.specs ?? []) as SpecValue[],
+    photos: [] as unknown[],
     reading: parseReading(body.initialReading),
     notes: text(body.initialNotes, 1000) ?? "",
     recordedAt: new Date(),
     recordedBy: ctx.user.id,
   };
-  const asset = await Inventory.create({ ...patch, code, condition, initialCheck });
-  // The baseline also opens the asset's check timeline.
-  await AuditReport.create({
-    auditorId: ctx.user.id,
-    inventoryId: asset._id,
-    auditDate: initialCheck.recordedAt,
-    type: "initial",
-    period: wibPeriodKey(),
-    previousCondition: null,
-    condition,
-    checklist: initialCheck.checklist,
-    specChecks: [],
-    reading: initialCheck.reading,
-    notes: initialCheck.notes,
-    status: "verified",
-    findings: [],
+  // One unit: a failed photo must not leave an asset without its baseline.
+  const asset = await database.transaction(async () => {
+    const created = await Inventory.create({ ...patch, code, condition, initialCheck });
+    initialCheck.photos = await claimInitialPhotos(ctx, String(created._id), body.initialPhotos);
+    created.initialCheck = initialCheck;
+    await created.save();
+    // The baseline also opens the asset's check timeline.
+    await AuditReport.create({
+      auditorId: ctx.user.id,
+      inventoryId: created._id,
+      auditDate: initialCheck.recordedAt,
+      type: "initial",
+      period: wibPeriodKey(),
+      previousCondition: null,
+      condition,
+      checklist: initialCheck.checklist,
+      specChecks: [],
+      photos: initialCheck.photos,
+      reading: initialCheck.reading,
+      notes: initialCheck.notes,
+      status: "verified",
+      findings: [],
+    });
+    return created;
   });
 
   void logActivity({ userId: ctx.user.id, action: "CREATE_INVENTORY", module: "inventory", before: null, after: asset.toObject(), ip: ctx.ip, userAgent: ctx.userAgent });

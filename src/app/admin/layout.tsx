@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, Building2, BookOpen, CalendarClock, Cake, CalendarHeart, CalendarOff, ClipboardCheck, FileSignature, FileSpreadsheet, KeyRound, Palette, LayoutDashboard, Megaphone, MessageSquareWarning, Network, ReceiptText, ScrollText, ShieldCheck, SlidersHorizontal, SquareArrowOutUpRight, Target, UserRoundSearch, UsersRound, Workflow } from "@/components/icons";
+import { Boxes, Building2, BookOpen, CalendarClock, Cake, CalendarHeart, CalendarOff, ClipboardCheck, FileSignature, FileSpreadsheet, KeyRound, ListChecks, Palette, LayoutDashboard, Megaphone, MessageSquareWarning, Network, ReceiptText, ScrollText, ShieldCheck, SlidersHorizontal, SquareArrowOutUpRight, Target, UserRoundSearch, UsersRound, Workflow } from "@/components/icons";
 import { AppShell, type NavSection } from "@/components/shell/AppShell";
 
 /**
@@ -31,6 +31,12 @@ const sections: NavSection[] = [
         href: "/admin/attendance",
         icon: ClipboardCheck,
         roles: ["SUPERADMIN", "HRD", "AUDIT", "DIREKSI", "SPV", "GA"],
+      },
+      {
+        name: "Task harian",
+        href: "/admin/attendance/tasks",
+        icon: ListChecks,
+        roles: ["SUPERADMIN", "HRD", "SPV"],
       },
       {
         name: "Data karyawan",

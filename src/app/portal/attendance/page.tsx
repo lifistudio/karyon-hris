@@ -27,6 +27,8 @@ import {
 } from "@/components/ui";
 import Link from "next/link";
 import { BirthdayPanel } from "@/components/BirthdayPanel";
+import { TodayTasks, type DayTasks } from "@/components/attendance/TodayTasks";
+import { Segmented } from "@/components/inventory/parts";
 import { SelfieCapture } from "@/components/portal/SelfieCapture";
 import { GeoStatus, type GeoState } from "@/components/portal/GeoStatus";
 import { useToast } from "@/components/ui/Toast";
@@ -112,6 +114,8 @@ export default function AttendancePage() {
   const [overrideMode, setOverrideMode] = useState(false);
   const [confirmAction, setConfirmAction] = useState<Action | null>(null);
   const [correctionOpen, setCorrectionOpen] = useState(false);
+  const [tasks, setTasks] = useState<DayTasks | null>(null);
+  const [wantsBreak, setWantsBreak] = useState(false);
 
   // Opened directly from the missed clock-out reminder. Read after mount so
   // the server render and the first client render agree.
@@ -126,10 +130,12 @@ export default function AttendancePage() {
   const load = useCallback(async () => {
     setLoadError("");
     try {
-      const [att, corr] = await Promise.all([
+      const [att, corr, day] = await Promise.all([
         api.get<{ logs: AttendanceLog[]; settings: AttendanceSettings }>("/api/v1/attendance"),
         api.get<{ corrections: Correction[]; quota: typeof quota }>("/api/v1/attendance/correction"),
+        api.get<DayTasks>("/api/v1/attendance/tasks", { cache: "no-store" }).catch(() => null),
       ]);
+      setTasks(day?.data ?? null);
       setLogs(att.data?.logs ?? []);
       setSettings(att.data?.settings ?? null);
       setCorrections(corr.data?.corrections ?? []);
@@ -157,11 +163,15 @@ export default function AttendancePage() {
     if (!todayLog?.clockIn) return "clock_in";
     if (todayLog.clockOut) return null;
     if (settings.enable_break_attendance) {
-      if (!todayLog.breakOut) return "break_out";
-      if (!todayLog.breakIn) return "break_in";
+      // A break is optional: going home stays the default until one is started.
+      if (!todayLog.breakOut && wantsBreak) return "break_out";
+      if (todayLog.breakOut && !todayLog.breakIn) return "break_in";
     }
     return "clock_out";
-  }, [todayLog, settings]);
+  }, [todayLog, settings, wantsBreak]);
+
+  const canBreak = Boolean(settings?.enable_break_attendance && todayLog?.clockIn && !todayLog.breakOut && !todayLog.clockOut);
+  const tasksHold = nextAction === "clock_out" && Boolean(tasks?.summary.blocked);
 
   // Mirrors the server rule: with face verification on, clocking in and out
   // always need a photo, whatever the per-step selfie settings say.
@@ -178,6 +188,7 @@ export default function AttendancePage() {
     Boolean(nextAction) &&
     Boolean(geo) &&
     !faceBlocked &&
+    !tasksHold &&
     (!selfieRequired || Boolean(photo)) &&
     (!overrideMode || note.trim().length >= minNote);
 
@@ -197,6 +208,7 @@ export default function AttendancePage() {
       setPhoto(null);
       setNote("");
       setOverrideMode(false);
+      setWantsBreak(false);
       await load();
     } catch (err) {
       toast.error("Presensi gagal", errorMessage(err));
@@ -243,11 +255,13 @@ export default function AttendancePage() {
       {/* ---------------- TODAY ---------------- */}
       {tab === "today" && (
         <div className="grid gap-6 lg:grid-cols-[1fr_380px] items-start">
+          <div className="min-w-0 space-y-6">
+          {tasks && tasks.tasks.length > 0 && <TodayTasks data={tasks} clockedIn={Boolean(todayLog?.clockIn)} onChanged={() => void load()} />}
           <Card>
             <CardHeader
               icon={CalendarClock}
               title="Catatan presensi hari ini"
-              description="Setiap tahap hanya dapat dicatat satu kali dan harus berurutan."
+              description="Setiap tahap hanya dapat dicatat satu kali. Absen istirahat bersifat opsional."
             />
             <CardBody className="space-y-3">
               <Timeline log={todayLog} settings={settings} nextAction={nextAction} />
@@ -267,6 +281,7 @@ export default function AttendancePage() {
               )}
             </CardBody>
           </Card>
+          </div>
 
           {/* Action panel */}
           <Card>
@@ -302,6 +317,14 @@ export default function AttendancePage() {
                 />
               ) : (
                 <>
+                  {canBreak && (
+                    <Segmented
+                      label="Yang ingin dicatat"
+                      value={wantsBreak ? "break" : "out"}
+                      onChange={(v) => setWantsBreak(v === "break")}
+                      options={[{ value: "out", label: "Absen pulang" }, { value: "break", label: "Mulai istirahat" }]}
+                    />
+                  )}
                   <GeoStatus value={geo} onChange={setGeo} />
 
                   {selfieRequired && (
@@ -383,7 +406,9 @@ export default function AttendancePage() {
 
                   {!canSubmit && (
                     <p className="text-caption text-subtle text-center leading-relaxed">
-                      {!geo
+                      {tasksHold
+                        ? `Selesaikan ${tasks?.summary.pending} task wajib untuk membuka absen pulang.`
+                        : !geo
                         ? "Menunggu lokasi terdeteksi…"
                         : selfieRequired && !photo
                           ? "Ambil foto selfie terlebih dahulu."

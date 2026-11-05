@@ -11,7 +11,12 @@
  * Shared by the server and the browser, so nothing here touches the database.
  */
 
-export type CheckResult = "ok" | "issue" | "na";
+/**
+ * `ok` still the same as before · `repaired` fixed since the last check ·
+ * `replaced` swapped for another part · `issue` damaged or not working ·
+ * `na` the asset does not have this item.
+ */
+export type CheckResult = "ok" | "repaired" | "replaced" | "issue" | "na";
 
 export interface CheckItem {
   label: string;
@@ -29,7 +34,19 @@ export interface SpecCheck {
   label: string;
   expected: string;
   matches: boolean;
+  /** The difference is a known replacement: the record moves to `actual`. */
+  replaced?: boolean;
+  actual?: string;
   note?: string;
+}
+
+/** An uploaded photo or document as stored on a check, handover or event. */
+export interface StoredPhoto {
+  kind: "file";
+  key: string;
+  name: string;
+  mime: string;
+  size: number;
 }
 
 export interface CategoryTemplate {
@@ -67,9 +84,24 @@ export const DEFAULT_TEMPLATES: Record<string, CategoryTemplate> = {
 const GENERIC: CategoryTemplate = DEFAULT_TEMPLATES.other;
 
 export const CHECK_RESULT_LABELS: Record<CheckResult, string> = {
-  ok: "Baik",
-  issue: "Bermasalah",
+  ok: "Sama",
+  repaired: "Diperbaiki",
+  replaced: "Diganti",
+  issue: "Rusak",
   na: "Tidak ada",
+};
+
+/** Every outcome of a routine check; a first look only needs three of them. */
+export const CHECK_RESULTS: CheckResult[] = ["ok", "repaired", "replaced", "issue", "na"];
+export const BASELINE_RESULTS: CheckResult[] = ["ok", "issue", "na"];
+
+export type InventoryEventType = "repair" | "replacement" | "spec_update" | "employee_report";
+
+export const EVENT_TYPE_LABELS: Record<InventoryEventType, string> = {
+  repair: "Perbaikan",
+  replacement: "Penggantian komponen",
+  spec_update: "Perubahan spesifikasi",
+  employee_report: "Laporan karyawan",
 };
 
 export const CHECK_TYPE_LABELS: Record<string, string> = {
@@ -124,7 +156,7 @@ export function sanitizeChecklist(input: unknown): CheckItem[] {
     const r = row as Record<string, unknown>;
     const label = typeof r.label === "string" ? r.label.trim().slice(0, 60) : "";
     if (!label) return [];
-    const result: CheckResult = r.result === "issue" || r.result === "na" ? r.result : "ok";
+    const result: CheckResult = CHECK_RESULTS.includes(r.result as CheckResult) ? (r.result as CheckResult) : "ok";
     const note = typeof r.note === "string" ? r.note.trim().slice(0, 300) : "";
     return [{ label, result, ...(note ? { note } : {}) }];
   });
@@ -149,10 +181,14 @@ export function sanitizeSpecChecks(input: unknown): SpecCheck[] {
     const label = typeof r.label === "string" ? r.label.trim().slice(0, 60) : "";
     if (!label) return [];
     const note = typeof r.note === "string" ? r.note.trim().slice(0, 300) : "";
+    const actual = typeof r.actual === "string" ? r.actual.trim().slice(0, 200) : "";
+    const matches = r.matches !== false;
     return [{
       label,
       expected: typeof r.expected === "string" ? r.expected.slice(0, 200) : "",
-      matches: r.matches !== false,
+      matches,
+      // A replacement without the new value cannot update the record, so it stays a plain mismatch.
+      ...(!matches && r.replaced === true && actual ? { replaced: true, actual } : {}),
       ...(note ? { note } : {}),
     }];
   });
@@ -186,7 +222,33 @@ export function compareCheck(
     findings.push(before?.result === "issue" ? `${item.label} masih bermasalah${suffix}` : `${item.label} bermasalah${suffix}`);
   }
   for (const spec of current.specChecks ?? []) {
-    if (!spec.matches) findings.push(`Spesifikasi ${spec.label} tidak sesuai catatan (${spec.expected || "-"})${spec.note ? `: ${spec.note}` : ""}`);
+    if (!spec.matches && !spec.replaced) findings.push(`Spesifikasi ${spec.label} tidak sesuai catatan (${spec.expected || "-"})${spec.note ? `: ${spec.note}` : ""}`);
   }
   return findings;
+}
+
+/**
+ * What legitimately changed: repairs and replacements. These are not problems,
+ * but an auditor still has to see them, so they are listed apart from findings.
+ */
+export function describeChanges(current: { checklist: CheckItem[]; specChecks?: SpecCheck[] }): string[] {
+  const changes: string[] = [];
+  for (const item of current.checklist) {
+    if (item.result !== "repaired" && item.result !== "replaced") continue;
+    changes.push(`${item.label} ${CHECK_RESULT_LABELS[item.result].toLowerCase()}${item.note ? `: ${item.note}` : ""}`);
+  }
+  for (const spec of current.specChecks ?? []) {
+    if (spec.replaced) changes.push(`${spec.label} diganti dari ${spec.expected || "-"} menjadi ${spec.actual}${spec.note ? ` (${spec.note})` : ""}`);
+  }
+  return changes;
+}
+
+/** Fields of a specification list that differ, for the asset's history. */
+export function diffSpecs(before: SpecValue[] | undefined, after: SpecValue[]): Array<{ label: string; from: string; to: string }> {
+  const old = new Map((before ?? []).map((s) => [s.label, s.value]));
+  const next = new Map(after.map((s) => [s.label, s.value]));
+  return [...new Set([...old.keys(), ...next.keys()])].flatMap((label) => {
+    const from = old.get(label) ?? "", to = next.get(label) ?? "";
+    return from === to ? [] : [{ label, from, to }];
+  });
 }

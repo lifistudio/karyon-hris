@@ -1,6 +1,6 @@
 import { RecordId } from "@/lib/postgres";
 import database, { Schema, Document } from "@/lib/postgres";
-import type { CheckItem, SpecCheck } from "@/lib/inventory/templates";
+import type { CheckItem, SpecCheck, StoredPhoto } from "@/lib/inventory/templates";
 
 /**
  * One physical check of an asset.
@@ -23,12 +23,17 @@ export interface IAuditReport extends Document {
   condition: "good" | "damaged" | "lost";
   checklist: CheckItem[];
   specChecks: SpecCheck[];
+  photos: StoredPhoto[];
   reading?: number | null;
   holderEmployeeId?: RecordId | null;
   notes: string;
-  /** `flagged` when anything got worse than the baseline or a spec no longer matches. */
-  status: "verified" | "flagged";
+  /**
+   * `flagged` when anything got worse than the baseline or a spec no longer
+   * matches; `changed` when the only differences are repairs or replacements.
+   */
+  status: "verified" | "changed" | "flagged";
   findings: string[];
+  changes: string[];
 }
 
 const AuditReportSchema: Schema = new Schema(
@@ -42,11 +47,13 @@ const AuditReportSchema: Schema = new Schema(
     condition: { type: String, enum: ["good", "damaged", "lost"], required: true },
     checklist: { type: Schema.Types.Mixed, default: () => [] },
     specChecks: { type: Schema.Types.Mixed, default: () => [] },
+    photos: { type: Schema.Types.Mixed, default: () => [] },
     reading: { type: Number, default: null },
     holderEmployeeId: { type: Schema.Types.Id, ref: "Employee", default: null },
     notes: { type: String, default: "" },
-    status: { type: String, enum: ["verified", "flagged"], default: "verified" },
+    status: { type: String, enum: ["verified", "changed", "flagged"], default: "verified" },
     findings: { type: [String], default: () => [] },
+    changes: { type: [String], default: () => [] },
   },
   { timestamps: true }
 );

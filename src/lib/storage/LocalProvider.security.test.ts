@@ -73,3 +73,11 @@ test("data URLs are checked by file signature, not only claimed MIME", () => {
     { buffer: pdf, mime: "application/pdf", ext: ".pdf" }
   );
 });
+
+test("a storage key has one spelling, so folder-based access rules cannot be sidestepped", async () => {
+  const { isCanonicalKey } = await import("./StorageProvider");
+  assert.equal(isCanonicalKey("faces/abc/ref.webp"), true);
+  for (const key of ["", "./faces/abc/ref.webp", "faces//abc", "faces/./abc", "faces/../payrolls/x", "faces/abc/", "faces\\abc"]) {
+    assert.equal(isCanonicalKey(key), false, key);
+  }
+});

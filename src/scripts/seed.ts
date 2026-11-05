@@ -95,7 +95,7 @@ const PERMISSIONS: PermSeed[] = [
   { role: "AUDIT", module: "payroll", actions: ["read", "export"], scope: "all" },
   { role: "AUDIT", module: "kpi", actions: ["read", "export"], scope: "all" },
   { role: "AUDIT", module: "contracts", actions: ["read"], scope: "all" },
-  { role: "AUDIT", module: "inventory", actions: ["read", "write"], scope: "all" },
+  { role: "AUDIT", module: "inventory", actions: ["read", "write", "export"], scope: "all" },
   { role: "AUDIT", module: "complaint", actions: ["read", "write"], scope: "all" },
   { role: "AUDIT", module: "audit", actions: ["read", "export"], scope: "all" },
   { role: "AUDIT", module: "reports", actions: ["read", "export"], scope: "all" },

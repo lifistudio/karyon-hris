@@ -1,6 +1,6 @@
 import { RecordId } from "@/lib/postgres";
 import database, { Schema, Document } from "@/lib/postgres";
-import type { CheckItem } from "@/lib/inventory/templates";
+import type { CheckItem, SpecValue, StoredPhoto } from "@/lib/inventory/templates";
 import type { InventoryCondition } from "./Inventory";
 
 /**
@@ -21,15 +21,25 @@ export interface IInventoryAssignment extends Document {
   /** Condition and checklist as handed over — what the employee signs for. */
   handoverCondition?: InventoryCondition;
   handoverChecklist?: CheckItem[];
+  /** The specification at handover: later replacements must not rewrite a signed BAST. */
+  handoverSpecs?: SpecValue[];
+  handoverPhotos?: StoredPhoto[];
   handoverReading?: number | null;
   handoverNotes?: string;
-  signatureUrl?: string; // canvas draw signature or a scan of the signed paper BAST
+  /** Storage key of the drawn signature or signed scan; older rows hold a data URL. */
+  signatureUrl?: string;
   signedAt?: Date | null;
+  signedVia?: "portal" | "paper" | "";
+  signedIp?: string;
+  signedUserAgent?: string;
+  /** SHA-256 over what was signed and the signature file; shows a BAST was not altered later. */
+  signatureHash?: string;
   employeeNote?: string;
   disputeNote?: string;
   returnDate?: Date | null;
   returnCondition?: InventoryCondition;
   returnChecklist?: CheckItem[];
+  returnPhotos?: StoredPhoto[];
   returnReading?: number | null;
   returnNotes?: string;
   receivedBy?: RecordId | null;
@@ -44,15 +54,22 @@ const InventoryAssignmentSchema = new Schema<IInventoryAssignment>({
   assignedBy: { type: Schema.Types.Id, ref: "User", default: null },
   handoverCondition: { type: String, enum: ["good", "damaged", "lost"] },
   handoverChecklist: { type: Schema.Types.Mixed, default: () => [] },
+  handoverSpecs: { type: Schema.Types.Mixed, default: () => [] },
+  handoverPhotos: { type: Schema.Types.Mixed, default: () => [] },
   handoverReading: { type: Number, default: null },
   handoverNotes: { type: String, default: "" },
   signatureUrl: { type: String },
   signedAt: { type: Date, default: null },
+  signedVia: { type: String, default: "" },
+  signedIp: { type: String, default: "" },
+  signedUserAgent: { type: String, default: "" },
+  signatureHash: { type: String, default: "" },
   employeeNote: { type: String, default: "" },
   disputeNote: { type: String, default: "" },
   returnDate: { type: Date, default: null },
   returnCondition: { type: String, enum: ["good", "damaged", "lost"] },
   returnChecklist: { type: Schema.Types.Mixed, default: () => [] },
+  returnPhotos: { type: Schema.Types.Mixed, default: () => [] },
   returnReading: { type: Number, default: null },
   returnNotes: { type: String, default: "" },
   receivedBy: { type: Schema.Types.Id, ref: "User", default: null },
