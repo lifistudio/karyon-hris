@@ -12,6 +12,33 @@ test("schema string format validation is preserved", () => {
   assert.throws(() => normalize(field, "invalid", "dateKey"), /Validation failed/);
 });
 
+test("sub-schemas keep working across production bundle copies (license activations)", async () => {
+  // A production bundle can load schema.ts twice; a sub-schema built by the other
+  // copy then fails `instanceof Schema`. This broke $elemMatch on license
+  // activations (lease renewal, "Lepas lisensi", re-activation) with a 500.
+  class BundledSchema {
+    static readonly __hrisSchema = true;
+    readonly indexes: unknown[] = [];
+    constructor(public definition: Record<string, unknown>, public options: Record<string, unknown> = {}) {}
+  }
+  const activation = new BundledSchema({ installationId: { type: String, required: true }, secretHash: { type: String, required: true }, lastSeenAt: { type: Date } }, { _id: false });
+  const pg = new PGlite(); const db = new Database("TEST_", pg);
+  const License = db.model("License", new Schema({ keyHint: String, activations: { type: [activation], default: [] } }));
+  try {
+    await setupSchema(db, "test");
+    const row = await License.create({ keyHint: "abcd", activations: [{ installationId: "inst_1", secretHash: "hash_1", lastSeenAt: new Date() }] });
+    assert.equal(row.activations[0]._id, undefined);
+    assert.ok(row.activations[0].lastSeenAt instanceof Date);
+    assert.equal(await License.countDocuments({ activations: { $elemMatch: { installationId: "inst_1", secretHash: "hash_1" } } }), 1);
+    const found = await License.findOne({ activations: { $elemMatch: { installationId: "inst_1", secretHash: "hash_1" } } });
+    assert.ok(found);
+    found.activations[0].lastSeenAt = new Date(); await found.save();
+    found.activations = []; await found.save();
+    assert.equal(await License.countDocuments({ activations: { $elemMatch: { installationId: "inst_1" } } }), 0);
+    await assert.rejects(License.create({ keyHint: "x", activations: [{ installationId: "inst_2" }] }), /secretHash is required/);
+  } finally { await pg.close(); }
+});
+
 test("PostgreSQL native schema, constraints, queries and transactions", async () => {
   const pg = new PGlite(); const db = new Database("TEST_", pg);
   const Role = db.model("Role", new Schema({ name: { type: String, unique: true, required: true } }));

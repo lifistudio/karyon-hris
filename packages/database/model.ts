@@ -2,7 +2,7 @@ import type { DynamicValue } from "./schema";
 /* Explicitly bounded repository API for the existing HRIS contracts. All
  * predicates compile to parameterized SQL; no MongoDB protocol is used. */
 import { Connection, type SqlExecutor } from "./connection";
-import { descriptor, fields, hydrate, ident, normalize, RecordId, Schema, sqlType, tableName, type Shape } from "./schema";
+import { descriptor, fields, hydrate, ident, normalize, RecordId, Schema, isSchema, sqlType, tableName, type Shape } from "./schema";
 import { SqlBuilder } from "./query";
 export { RecordId, Schema } from "./schema";
 export type InferSchemaType<T> = T extends Schema<infer U> ? U : never;
@@ -155,7 +155,7 @@ export class Repository {
     // A root schema may itself have a field named "type" (positions/contracts).
     // It is a field map, never a field descriptor.
     let raw: DynamicValue = this.schema.definition[paths[0]];
-    for (const key of paths.slice(1)) { const type = descriptor(raw).type; raw = (type instanceof Schema ? type.definition : Array.isArray(type) ? descriptor(type[0]).type : type)?.[key]; }
+    for (const key of paths.slice(1)) { const type = descriptor(raw).type; raw = (isSchema(type) ? type.definition : Array.isArray(type) ? descriptor(type[0]).type : type)?.[key]; }
     let definition = descriptor(raw);
     if (Array.isArray(definition.type)) definition = descriptor(definition.type[0]);
     if (!definition.ref) throw new Error(`Unknown relation ${this.name}.${spec.path}`);

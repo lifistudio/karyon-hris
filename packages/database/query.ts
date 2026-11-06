@@ -1,5 +1,5 @@
 import type { DynamicValue } from "./schema";
-import { descriptor, fields, ident, isRecordId, literal, Schema, sqlType, type Shape } from "./schema";
+import { descriptor, fields, ident, isRecordId, literal, Schema, isSchema, sqlType, type Shape } from "./schema";
 
 export class SqlBuilder {
   values: DynamicValue[] = [];
@@ -19,7 +19,7 @@ export class SqlBuilder {
       let type = descriptor(raw).type;
       if (Array.isArray(type)) throw new Error("Use elemMatch for nested array predicates");
       for (const part of parts) {
-        const shape = type instanceof Schema ? type.definition : type;
+        const shape = isSchema(type) ? type.definition : type;
         raw = shape?.[part]; type = descriptor(raw ?? Object).type;
       }
       const pathSql = `ARRAY[${parts.map(literal).join(",")}]::text[]`;
@@ -76,7 +76,7 @@ export class SqlBuilder {
           } else if (op === "$elemMatch") {
             if (!f.array) throw new Error("elemMatch requires an array");
             const def = descriptor(f.definition).type[0];
-            const nested = def instanceof Schema ? def.definition : descriptor(def).type;
+            const nested = isSchema(def) ? def.definition : descriptor(def).type;
             const builder = new JsonPredicate(this, nested, "element");
             terms.push(`EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(${f.sql}, '[]'::jsonb)) element WHERE ${builder.condition(val as Shape)})`);
           } else throw new Error(`Unsupported predicate ${op}`);

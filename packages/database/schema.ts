@@ -35,14 +35,18 @@ export interface Field {
   sparse?: boolean; select?: boolean; ref?: string; expires?: number; match?: RegExp;
 }
 export class Schema<T = DynamicValue> {
+  static readonly __hrisSchema = true;
   declare readonly inferredType: T;
   static Types = { Id: RecordId, Mixed: Object };
   readonly indexes: { fields: Shape; options: Shape }[] = [];
   constructor(public definition: Shape, public options: Shape = {}) {}
   index(fields: Shape, options: Shape = {}) { this.indexes.push({ fields, options }); return this; }
 }
+// A production bundle can load this module twice; a sub-schema built by the
+// other copy fails `instanceof Schema`, so recognise the class by its brand.
+export const isSchema = (value: unknown): value is Schema => value instanceof Schema || Boolean(value && typeof value === "object" && (value as { constructor?: { __hrisSchema?: unknown } }).constructor?.__hrisSchema === true);
 export const descriptor = (value: DynamicValue): Field => {
-  if (value instanceof Schema || Array.isArray(value) || typeof value === "function") return { type: value };
+  if (isSchema(value) || Array.isArray(value) || typeof value === "function") return { type: value };
   if (value && Object.hasOwn(value, "type")) return value;
   return { type: value };
 };
@@ -60,7 +64,7 @@ export function normalize(raw: DynamicValue, input: DynamicValue, path: string, 
   if (value === undefined && defaults) {
     if (field.default !== undefined) value = typeof field.default === "function" ? field.default() : structuredClone(field.default);
     else if (Array.isArray(type)) value = [];
-    else if (type && typeof type === "object" && !(type instanceof Schema)) value = {};
+    else if (type && typeof type === "object" && !isSchema(type)) value = {};
   }
   if (value === undefined || value === null) {
     if (field.required) throw new Error(`Validation failed: ${path} is required`);
@@ -86,11 +90,11 @@ export function normalize(raw: DynamicValue, input: DynamicValue, path: string, 
   } else if (Array.isArray(type)) {
     if (!Array.isArray(value)) throw new Error(`Validation failed: ${path} array`);
     value = value.map((item, index) => normalize(type[0] ?? Object, item, `${path}.${index}`, defaults));
-  } else if (type instanceof Schema || (type && typeof type === "object")) {
+  } else if (isSchema(type) || (type && typeof type === "object")) {
     if (typeof value !== "object" || Array.isArray(value)) throw new Error(`Validation failed: ${path} object`);
-    const shape = type instanceof Schema ? type.definition : type;
+    const shape = isSchema(type) ? type.definition : type;
     const result: Shape = { ...value };
-    if (type instanceof Schema && type.options._id !== false) result._id = value._id ? String(value._id) : new RecordId().toString();
+    if (isSchema(type) && type.options._id !== false) result._id = value._id ? String(value._id) : new RecordId().toString();
     for (const [key, def] of Object.entries(shape)) {
       const item = normalize(def, value[key], `${path}.${key}`, defaults);
       if (item !== undefined) result[key] = item;
@@ -106,7 +110,7 @@ export function hydrate(raw: DynamicValue, value: DynamicValue): DynamicValue {
   if (type === Date) return new Date(value);
   if (type === Number) return Number(value);
   if (Array.isArray(type)) return value.map((v: DynamicValue) => hydrate(type[0], v));
-  const shape = type instanceof Schema ? type.definition : typeof type === "object" ? type : null;
+  const shape = isSchema(type) ? type.definition : typeof type === "object" ? type : null;
   if (shape) for (const [key, def] of Object.entries(shape)) if (value[key] !== undefined) value[key] = hydrate(def, value[key]);
   return value;
 }
